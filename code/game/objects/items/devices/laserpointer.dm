@@ -5,7 +5,8 @@
 	icon_state = "pointer"
 	item_state = "pen"
 	var/pointer_icon_state
-	flags_1 = CONDUCT_1 | NOBLUDGEON_1
+	flags_1 = CONDUCT_1
+	item_flags = NOBLUDGEON
 	slot_flags = ITEM_SLOT_BELT
 	materials = list(MAT_METAL=500, MAT_GLASS=500)
 	w_class = WEIGHT_CLASS_SMALL
@@ -56,6 +57,7 @@
 		return ..()
 
 /obj/item/laser_pointer/afterattack(atom/target, mob/living/user, flag, params)
+	. = ..()
 	laser_act(target, user, params)
 
 /obj/item/laser_pointer/proc/laser_act(atom/target, mob/living/user, params)
@@ -90,7 +92,7 @@
 	if(iscarbon(target))
 		var/mob/living/carbon/C = target
 		if(user.zone_selected == BODY_ZONE_PRECISE_EYES)
-			add_logs(user, C, "shone in the eyes", src)
+			log_combat(user, C, "shone in the eyes", src)
 
 			var/severity = 1
 			if(prob(33))
@@ -100,22 +102,22 @@
 
 			//chance to actually hit the eyes depends on internal component
 			if(prob(effectchance * diode.rating) && C.flash_act(severity))
-				outmsg = "<span class='notice'>You blind [C] by shining [src] in their eyes.</span>"
+				outmsg = "<span class='notice'>You blind [C] by shining [src] in [C.p_their()] eyes.</span>"
 			else
-				outmsg = "<span class='warning'>You fail to blind [C] by shining [src] at their eyes!</span>"
+				outmsg = "<span class='warning'>You fail to blind [C] by shining [src] at [C.p_their()] eyes!</span>"
 
 	//robots
 	else if(iscyborg(target))
 		var/mob/living/silicon/S = target
-		add_logs(user, S, "shone in the sensors", src)
+		log_combat(user, S, "shone in the sensors", src)
 		//chance to actually hit the eyes depends on internal component
 		if(prob(effectchance * diode.rating))
 			S.flash_act(affect_silicon = 1)
 			S.Knockdown(rand(100,200))
 			to_chat(S, "<span class='danger'>Your sensors were overloaded by a laser!</span>")
-			outmsg = "<span class='notice'>You overload [S] by shining [src] at their sensors.</span>"
+			outmsg = "<span class='notice'>You overload [S] by shining [src] at [S.p_their()] sensors.</span>"
 		else
-			outmsg = "<span class='warning'>You fail to overload [S] by shining [src] at their sensors!</span>"
+			outmsg = "<span class='warning'>You fail to overload [S] by shining [src] at [S.p_their()] sensors!</span>"
 
 	//cameras
 	else if(istype(target, /obj/machinery/camera))
@@ -123,7 +125,7 @@
 		if(prob(effectchance * diode.rating))
 			C.emp_act(EMP_HEAVY)
 			outmsg = "<span class='notice'>You hit the lens of [C] with [src], temporarily disabling the camera!</span>"
-			add_logs(user, C, "EMPed", src)
+			log_combat(user, C, "EMPed", src)
 		else
 			outmsg = "<span class='warning'>You miss the lens of [C] with [src]!</span>"
 
@@ -136,7 +138,7 @@
 			if(prob(effectchance))
 				H.visible_message("<span class='warning'>[H] makes a grab for the light!</span>","<span class='userdanger'>LIGHT!</span>")
 				H.Move(targloc)
-				add_logs(user, H, "moved with a laser pointer",src)
+				log_combat(user, H, "moved with a laser pointer",src)
 			else
 				H.visible_message("<span class='notice'>[H] looks briefly distracted by the light.</span>","<span class = 'warning'> You're briefly tempted by the shiny light... </span>")
 		else

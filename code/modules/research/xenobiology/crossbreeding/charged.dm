@@ -12,7 +12,7 @@ Charged extracts:
 	icon_state = "charged"
 
 /obj/item/slimecross/charged/Initialize()
-	..()
+	. = ..()
 	create_reagents(10)
 
 /obj/item/slimecross/charged/attack_self(mob/user)
@@ -66,10 +66,8 @@ Charged extracts:
 	colour = "metal"
 
 /obj/item/slimecross/charged/metal/do_effect(mob/user)
-	var/obj/item/stack/sheet/metal/M = new(get_turf(user))
-	M.amount = 25
-	var/obj/item/stack/sheet/plasteel/P = new(get_turf(user))
-	P.amount = 10
+	new /obj/item/stack/sheet/metal(get_turf(user), 25)
+	new /obj/item/stack/sheet/plasteel(get_turf(user), 10)
 	user.visible_message("<span class='notice'>[src] grows into a plethora of metals!</span>")
 	..()
 
@@ -85,8 +83,7 @@ Charged extracts:
 	colour = "dark purple"
 
 /obj/item/slimecross/charged/darkpurple/do_effect(mob/user)
-	var/obj/item/stack/sheet/mineral/plasma/M = new(get_turf(user))
-	M.amount = 10
+	new /obj/item/stack/sheet/mineral/plasma(get_turf(user), 10)
 	user.visible_message("<span class='notice'>[src] produces a large amount of plasma!</span>")
 	..()
 
@@ -113,8 +110,7 @@ Charged extracts:
 	colour = "bluespace"
 
 /obj/item/slimecross/charged/bluespace/do_effect(mob/user)
-	var/obj/item/stack/sheet/bluespace_crystal/M = new(get_turf(user))
-	M.amount = 10
+	new /obj/item/stack/sheet/bluespace_crystal(get_turf(user), 10)
 	user.visible_message("<span class='notice'>[src] produces several sheets of polycrystal!</span>")
 	..()
 
@@ -138,8 +134,7 @@ Charged extracts:
 	colour = "pyrite"
 
 /obj/item/slimecross/charged/pyrite/do_effect(mob/user)
-	var/obj/item/stack/sheet/mineral/bananium/M = new(get_turf(user))
-	M.amount = 10
+	new /obj/item/stack/sheet/mineral/bananium(get_turf(user), 10)
 	user.visible_message("<span class='warning'>[src] solidifies with a horrifying banana stench!</span>")
 	..()
 
@@ -201,7 +196,7 @@ Charged extracts:
 
 /obj/item/slimecross/charged/gold/Destroy()
 	STOP_PROCESSING(SSobj, src)
-	..()
+	return ..()
 
 /obj/item/slimecross/charged/oil
 	colour = "oil"
@@ -320,7 +315,7 @@ Charged extracts:
 	var/uses = 2
 
 /obj/item/slimepotion/spaceproof/afterattack(obj/item/clothing/C, mob/user, proximity)
-	..()
+	. = ..()
 	if(!uses)
 		qdel(src)
 		return
@@ -357,7 +352,7 @@ Charged extracts:
 	var/uses = 2
 
 /obj/item/slimepotion/lavaproof/afterattack(obj/item/C, mob/user, proximity)
-	..()
+	. = ..()
 	if(!uses)
 		qdel(src)
 		return ..()
@@ -391,6 +386,9 @@ Charged extracts:
 	if(user == M)
 		to_chat(user, "<span class='warning'>You can't drink the love potion. What are you, a narcissist?</span>")
 		return ..()
+	if(M.has_status_effect(STATUS_EFFECT_INLOVE))
+		to_chat(user, "<span class='warning'>[M] is already lovestruck!</span>")
+		return ..()
 
 	M.visible_message("<span class='danger'>[user] starts to feed [M] a love potion!</span>",
 		"<span class='userdanger'>[user] starts to feed you a love potion!</span>")
@@ -398,10 +396,11 @@ Charged extracts:
 	if(!do_after(user, 50, target = M))
 		return
 	to_chat(user, "<span class='notice'>You feed [M] the love potion!</span>")
-	to_chat(M, "<span class='notice'>You develop feelings for [user], and anyone [p_they(user)] like.</span>")
-	if(!("[REF(user)]" in M.faction) && M.mind)
-		M.mind.store_memory("You have strong feelings for [user].")
+	to_chat(M, "<span class='notice'>You develop feelings for [user], and anyone [user.p_they()] like.</span>")
+	if(M.mind)
+		M.mind.store_memory("You are in love with [user].")
 	M.faction |= "[REF(user)]"
+	M.apply_status_effect(STATUS_EFFECT_INLOVE, user)
 	qdel(src)
 
 /obj/item/slimepotion/peacepotion

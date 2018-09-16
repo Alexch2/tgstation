@@ -168,12 +168,12 @@
 	top_layer = top_layer || mutable_appearance(icon, layer = ABOVE_MOB_LAYER)
 	switch(cannon_direction)
 		if(WEST)
-			dir = WEST
+			setDir(WEST)
 			pixel_x = -192
 			top_layer.icon_state = "top_west"
 			icon_state = "cannon_west"
 		if(EAST)
-			dir = EAST
+			setDir(EAST)
 			top_layer.icon_state = "top_east"
 			icon_state = "cannon_east"
 	add_overlay(top_layer)
@@ -185,7 +185,7 @@
 		T.ex_act(EXPLODE_DEVASTATE)
 	point.Beam(get_target_turf(),icon_state="bsa_beam",time=50,maxdistance = world.maxx) //ZZZAP
 
-	message_admins("[key_name_admin(user)] has launched an artillery strike.")
+	message_admins("[ADMIN_LOOKUPFLW(user)] has launched an artillery strike.")
 	explosion(bullseye,ex_power,ex_power*2,ex_power*4)
 
 	reload()

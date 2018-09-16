@@ -12,7 +12,7 @@
 	var/content_overlays = FALSE //If this is true, the belt will gain overlays based on what it's holding
 
 /obj/item/storage/belt/suicide_act(mob/living/carbon/user)
-	user.visible_message("<span class='suicide'>[user] begins belting themselves with \the [src]! It looks like [user.p_theyre()] trying to commit suicide!</span>")
+	user.visible_message("<span class='suicide'>[user] begins belting [user.p_them()]self with \the [src]! It looks like [user.p_theyre()] trying to commit suicide!</span>")
 	return BRUTELOSS
 
 /obj/item/storage/belt/update_icon()
@@ -325,6 +325,53 @@
 	. = ..()
 	GET_COMPONENT(STR, /datum/component/storage)
 	STR.max_w_class = WEIGHT_CLASS_SMALL
+
+/obj/item/storage/belt/military/snack
+	name = "tactical snack rig"
+
+/obj/item/storage/belt/military/snack/Initialize()
+	. = ..()
+	var/sponsor = pick("DonkCo", "Waffle Co.", "Roffle Co.", "Gorlax Marauders", "Tiger Cooperative")
+	desc = "A set of snack-tical webbing worn by athletes of the [sponsor] VR sports division."
+
+/obj/item/storage/belt/military/snack/ComponentInitialize()
+	. = ..()
+	GET_COMPONENT(STR, /datum/component/storage)
+	STR.max_items = 6
+	STR.max_w_class = WEIGHT_CLASS_SMALL
+	STR.can_hold = typecacheof(list(
+		/obj/item/reagent_containers/food/snacks,
+		/obj/item/reagent_containers/food/drinks
+		))
+	
+	var/amount = 5
+	var/rig_snacks
+	while(contents.len <= amount)
+		rig_snacks = pick(list(
+		/obj/item/reagent_containers/food/snacks/candy,
+		/obj/item/reagent_containers/food/drinks/dry_ramen,
+		/obj/item/reagent_containers/food/snacks/chips,
+		/obj/item/reagent_containers/food/snacks/sosjerky,
+		/obj/item/reagent_containers/food/snacks/syndicake,
+		/obj/item/reagent_containers/food/snacks/spacetwinkie,
+		/obj/item/reagent_containers/food/snacks/cheesiehonkers,
+		/obj/item/reagent_containers/food/snacks/nachos,
+		/obj/item/reagent_containers/food/snacks/cheesynachos,
+		/obj/item/reagent_containers/food/snacks/cubannachos,
+		/obj/item/reagent_containers/food/snacks/nugget,
+		/obj/item/reagent_containers/food/snacks/pastatomato,
+		/obj/item/reagent_containers/food/snacks/rofflewaffles,
+		/obj/item/reagent_containers/food/snacks/donkpocket,
+		/obj/item/reagent_containers/food/drinks/soda_cans/cola,
+		/obj/item/reagent_containers/food/drinks/soda_cans/space_mountain_wind,
+		/obj/item/reagent_containers/food/drinks/soda_cans/dr_gibb,
+		/obj/item/reagent_containers/food/drinks/soda_cans/starkist,
+		/obj/item/reagent_containers/food/drinks/soda_cans/space_up,
+		/obj/item/reagent_containers/food/drinks/soda_cans/pwr_game,
+		/obj/item/reagent_containers/food/drinks/soda_cans/lemon_lime,
+		/obj/item/reagent_containers/food/drinks/drinkingglass/filled/nuka_cola
+		))
+		new rig_snacks(src)
 
 /obj/item/storage/belt/military/abductor
 	name = "agent belt"

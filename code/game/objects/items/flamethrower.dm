@@ -66,6 +66,7 @@
 	return
 
 /obj/item/flamethrower/afterattack(atom/target, mob/user, flag)
+	. = ..()
 	if(flag)
 		return // too close
 	if(ishuman(user))
@@ -75,7 +76,7 @@
 		var/turf/target_turf = get_turf(target)
 		if(target_turf)
 			var/turflist = getline(user, target_turf)
-			add_logs(user, target, "flamethrowered", src)
+			log_combat(user, target, "flamethrowered", src)
 			flame_turf(turflist)
 
 /obj/item/flamethrower/attackby(obj/item/W, mob/user, params)
@@ -125,10 +126,12 @@
 		update_icon()
 		return
 
-	else if(istype(W, /obj/item/analyzer) && ptank)
-		atmosanalyzer_scan(ptank.air_contents, user)
 	else
 		return ..()
+
+/obj/item/flamethrower/analyzer_act(mob/living/user, obj/item/I)
+	if(ptank)
+		ptank.analyzer_act(user, I)
 
 
 /obj/item/flamethrower/attack_self(mob/user)

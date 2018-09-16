@@ -26,8 +26,8 @@
 	if(!isopenturf(parent))
 		return COMPONENT_INCOMPATIBLE
 	add_wet(strength, duration_minimum, duration_add, duration_maximum)
-	RegisterSignal(COMSIG_TURF_IS_WET, .proc/is_wet)
-	RegisterSignal(COMSIG_TURF_MAKE_DRY, .proc/dry)
+	RegisterSignal(parent, COMSIG_TURF_IS_WET, .proc/is_wet)
+	RegisterSignal(parent, COMSIG_TURF_MAKE_DRY, .proc/dry)
 	permanent = _permanent
 	if(!permanent)
 		START_PROCESSING(SSwet_floors, src)
@@ -90,7 +90,7 @@
 	S.intensity = intensity
 	S.lube_flags = lube_flags
 
-/datum/component/wet_floor/proc/dry(strength = TURF_WET_WATER, immediate = FALSE, duration_decrease = INFINITY)
+/datum/component/wet_floor/proc/dry(datum/source, strength = TURF_WET_WATER, immediate = FALSE, duration_decrease = INFINITY)
 	for(var/i in time_left_list)
 		if(text2num(i) <= strength)
 			time_left_list[i] = max(0, time_left_list[i] - duration_decrease)
@@ -117,11 +117,11 @@
 	decrease = max(0, decrease)
 	if((is_wet() & TURF_WET_ICE) && t > T0C)		//Ice melts into water!
 		for(var/obj/O in T.contents)
-			if(O.flags_2 & FROZEN_2)
+			if(O.obj_flags & FROZEN)
 				O.make_unfrozen()
 		add_wet(TURF_WET_WATER, max_time_left())
-		dry(TURF_WET_ICE)
-	dry(ALL, FALSE, decrease)
+		dry(null, TURF_WET_ICE)
+	dry(null, ALL, FALSE, decrease)
 	check()
 	last_process = world.time
 
@@ -135,12 +135,14 @@
 	for(var/i in time_left_list)
 		. |= text2num(i)
 
-/datum/component/wet_floor/OnTransfer(datum/to_datum)
-	if(!isopenturf(to_datum))
-		return COMPONENT_INCOMPATIBLE
+/datum/component/wet_floor/PreTransfer()
 	var/turf/O = parent
 	O.cut_overlay(current_overlay)
-	var/turf/T = to_datum
+
+/datum/component/wet_floor/PostTransfer()
+	if(!isopenturf(parent))
+		return COMPONENT_INCOMPATIBLE
+	var/turf/T = parent
 	T.add_overlay(current_overlay)
 
 /datum/component/wet_floor/proc/add_wet(type, duration_minimum = 0, duration_add = 0, duration_maximum = MAXIMUM_WET_TIME, _permanent = FALSE)
@@ -173,7 +175,7 @@
 	if(!LAZYLEN(time_left_list))
 		if(on_init)
 			var/turf/T = parent
-			stack_trace("Warning: Wet floor component gc'd right initializatoin! What a waste of time and CPU! Type = [T? T.type : "ERROR - NO PARENT"], Coords = [istype(T)? COORD(T) : "ERROR - INVALID PARENT"].")
+			stack_trace("Warning: Wet floor component gc'd right after initialization! What a waste of time and CPU! Type = [T? T.type : "ERROR - NO PARENT"], Location = [istype(T)? AREACOORD(T) : "ERROR - INVALID PARENT"].")
 		qdel(src)
 		return TRUE
 	return FALSE

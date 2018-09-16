@@ -167,7 +167,7 @@
 		to_chat(owner.current, "We have reached our capacity for abilities.")
 		return
 
-	if(owner.current.has_trait(TRAIT_FAKEDEATH))//To avoid potential exploits by buying new powers while in stasis, which clears your verblist.
+	if(owner.current.has_trait(TRAIT_DEATHCOMA))//To avoid potential exploits by buying new powers while in stasis, which clears your verblist.
 		to_chat(owner.current, "We lack the energy to evolve new abilities right now.")
 		return
 
@@ -353,7 +353,10 @@
 	if(GLOB.changeling_team_objective_type)
 		var/datum/objective/changeling_team_objective/team_objective = new GLOB.changeling_team_objective_type
 		team_objective.owner = owner
-		objectives += team_objective
+		if(team_objective.prepare())//Setting up succeeded
+			objectives += team_objective
+		else
+			qdel(team_objective)
 	return
 
 /datum/antagonist/changeling/proc/forge_objectives()
@@ -448,7 +451,7 @@
 /datum/antagonist/changeling/proc/update_changeling_icons_added()
 	var/datum/atom_hud/antag/hud = GLOB.huds[ANTAG_HUD_CHANGELING]
 	hud.join_hud(owner.current)
-	set_antag_hud(owner.current, "changling")
+	set_antag_hud(owner.current, "changeling")
 
 /datum/antagonist/changeling/proc/update_changeling_icons_removed()
 	var/datum/atom_hud/antag/hud = GLOB.huds[ANTAG_HUD_CHANGELING]

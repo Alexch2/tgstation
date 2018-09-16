@@ -12,12 +12,13 @@
 	var/move_to_lair = TRUE
 	var/outfit_type = /datum/outfit/wizard
 	var/wiz_age = WIZARD_AGE_MIN /* Wizards by nature cannot be too young. */
+	can_hijack = HIJACK_HIJACKER
 
 /datum/antagonist/wizard/on_gain()
 	register()
+	equip_wizard()
 	if(give_objectives)
 		create_objectives()
-	equip_wizard()
 	if(move_to_lair)
 		send_to_lair()
 	. = ..()
@@ -179,7 +180,7 @@
 	wiz_age = APPRENTICE_AGE_MIN
 
 /datum/antagonist/wizard/apprentice/greet()
-	to_chat(owner, "<B>You are [master.current.real_name]'s apprentice! You are bound by magic contract to follow their orders and help them in accomplishing their goals.")
+	to_chat(owner, "<B>You are [master.current.real_name]'s apprentice! You are bound by magic contract to follow [master.p_their()] orders and help [master.p_them()] in accomplishing [master.p_their()] goals.")
 	owner.announce_objectives()
 
 /datum/antagonist/wizard/apprentice/register()

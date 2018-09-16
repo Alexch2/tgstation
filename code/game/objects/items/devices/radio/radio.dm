@@ -7,7 +7,6 @@
 	dog_fashion = /datum/dog_fashion/back
 
 	flags_1 = CONDUCT_1 | HEAR_1
-	flags_2 = NO_EMP_WIRES_2
 	slot_flags = ITEM_SLOT_BELT
 	throw_speed = 3
 	throw_range = 7
@@ -44,10 +43,11 @@
 	//FREQ_BROADCASTING = 2
 
 /obj/item/radio/suicide_act(mob/living/user)
-	user.visible_message("<span class='suicide'>[user] starts bouncing [src] off their head! It looks like [user.p_theyre()] trying to commit suicide!</span>")
+	user.visible_message("<span class='suicide'>[user] starts bouncing [src] off [user.p_their()] head! It looks like [user.p_theyre()] trying to commit suicide!</span>")
 	return BRUTELOSS
 
 /obj/item/radio/proc/set_frequency(new_frequency)
+	SEND_SIGNAL(src, COMSIG_RADIO_NEW_FREQUENCY, args)
 	remove_radio(src, frequency)
 	frequency = add_radio(src, new_frequency)
 
@@ -96,13 +96,16 @@
 	for(var/ch_name in channels)
 		secure_radio_connections[ch_name] = add_radio(src, GLOB.radiochannels[ch_name])
 
+/obj/item/radio/ComponentInitialize()
+	. = ..()
+	AddComponent(/datum/component/empprotection, EMP_PROTECT_WIRES)
+
 /obj/item/radio/interact(mob/user)
-	if (..())
-		return
 	if(unscrewed && !isAI(user))
 		wires.interact(user)
+		add_fingerprint(user)
 	else
-		ui_interact(user)
+		..()
 
 /obj/item/radio/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, \
 										datum/tgui/master_ui = null, datum/ui_state/state = GLOB.inventory_state)
@@ -157,13 +160,7 @@
 				tune = tune * 10
 				. = TRUE
 			if(.)
-				frequency = sanitize_frequency(tune, freerange)
-				set_frequency(frequency)
-				GET_COMPONENT(hidden_uplink, /datum/component/uplink)
-				if(hidden_uplink && (frequency == traitor_frequency))
-					hidden_uplink.locked = FALSE
-					hidden_uplink.interact(usr)
-					ui.close()
+				set_frequency(sanitize_frequency(tune, freerange))
 		if("listen")
 			listening = !listening
 			. = TRUE
@@ -279,6 +276,7 @@
 	signal.broadcast()
 
 /obj/item/radio/Hear(message, atom/movable/speaker, message_language, raw_message, radio_freq, list/spans, message_mode)
+	. = ..()
 	if(radio_freq || !broadcasting || get_dist(src, speaker) > canhear_range)
 		return
 
@@ -340,6 +338,9 @@
 		return ..()
 
 /obj/item/radio/emp_act(severity)
+	. = ..()
+	if (. & EMP_PROTECT_SELF)
+		return
 	emped++ //There's been an EMP; better count it
 	var/curremp = emped //Remember which EMP this was
 	if (listening && ismob(loc))	// if the radio is turned on and on someone's person they notice
@@ -354,7 +355,6 @@
 			emped = 0
 			if (!istype(src, /obj/item/radio/intercom)) // intercoms will turn back on on their own
 				on = TRUE
-	..()
 
 ///////////////////////////////
 //////////Borg Radios//////////
@@ -365,7 +365,6 @@
 	name = "cyborg radio"
 	subspace_switchable = TRUE
 	dog_fashion = null
-	flags_2 = NO_EMP_WIRES_2
 
 /obj/item/radio/borg/Initialize(mapload)
 	. = ..()

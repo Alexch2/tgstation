@@ -27,10 +27,9 @@
 
 			if(filterToxins && !owner.has_trait(TRAIT_TOXINLOVER))
 				//handle liver toxin filtration
-				var/static/list/toxinstypecache = typecacheof(/datum/reagent/toxin)
 				for(var/I in C.reagents.reagent_list)
 					var/datum/reagent/pickedreagent = I
-					if(is_type_in_typecache(pickedreagent, toxinstypecache))
+					if(istype(pickedreagent, /datum/reagent/toxin))
 						var/thisamount = C.reagents.get_reagent_amount(initial(pickedreagent.id))
 						if (thisamount <= toxTolerance && thisamount)
 							C.reagents.remove_reagent(initial(pickedreagent.id), 1)
@@ -41,7 +40,7 @@
 			C.reagents.metabolize(C, can_overdose=TRUE)
 
 			if(damage > 10 && prob(damage/3))//the higher the damage the higher the probability
-				to_chat(C, "<span class='notice'>You feel [pick("nauseous", "dull pain in your lower body", "confused")].</span>")
+				to_chat(C, "<span class='warning'>You feel a dull pain in your abdomen.</span>")
 
 	if(damage > maxHealth)//cap liver damage
 		damage = maxHealth
@@ -59,25 +58,31 @@
 
 /obj/item/organ/liver/plasmaman
 	name = "reagent processing crystal"
-	icon_state = "pliver"
+	icon_state = "liver-p"
 	desc = "A large crystal that is somehow capable of metabolizing chemicals, these are found in plasmamen."
 
 /obj/item/organ/liver/cybernetic
 	name = "cybernetic liver"
 	icon_state = "liver-c"
-	desc = "An electronic device designed to mimic the functions of a human liver. It has no benefits over an organic liver, but is easy to produce."
+	desc = "An electronic device designed to mimic the functions of a human liver. Handles toxins slightly better than an organic liver."
 	synthetic = TRUE
+	maxHealth = 110
+	toxTolerance = 3.3
+	toxLethality = 0.009
 
 /obj/item/organ/liver/cybernetic/upgraded
 	name = "upgraded cybernetic liver"
 	icon_state = "liver-c-u"
-	desc = "An upgraded version of the cybernetic liver, designed to improve upon organic livers. It is resistant to alcohol poisoning and is very robust at filtering toxins."
+	desc = "An upgraded version of the cybernetic liver, designed to improve further upon organic livers. It is resistant to alcohol poisoning and is very robust at filtering toxins."
 	alcohol_tolerance = 0.001
 	maxHealth = 200 //double the health of a normal liver
 	toxTolerance = 15 //can shrug off up to 15u of toxins
 	toxLethality = 0.008 //20% less damage than a normal liver
 
 /obj/item/organ/liver/cybernetic/emp_act(severity)
+	. = ..()
+	if(. & EMP_PROTECT_SELF)
+		return
 	switch(severity)
 		if(1)
 			damage+=100

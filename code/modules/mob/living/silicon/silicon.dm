@@ -153,7 +153,7 @@
 
 /mob/living/silicon/can_inject(mob/user, error_msg)
 	if(error_msg)
-		to_chat(user, "<span class='alert'>Their outer shell is too tough.</span>")
+		to_chat(user, "<span class='alert'>[p_their(TRUE)] outer shell is too tough.</span>")
 	return FALSE
 
 /mob/living/silicon/IsAdvancedToolUser()
@@ -385,9 +385,9 @@
 	add_sensors()
 	to_chat(src, "Sensor overlay activated.")
 
-/mob/living/silicon/proc/GetPhoto()
+/mob/living/silicon/proc/GetPhoto(mob/user)
 	if (aicamera)
-		return aicamera.selectpicture(aicamera)
+		return aicamera.selectpicture(user)
 
 /mob/living/silicon/update_transform()
 	var/matrix/ntransform = matrix(transform) //aka transform.Copy()
@@ -403,3 +403,9 @@
 
 /mob/living/silicon/is_literate()
 	return 1
+
+/mob/living/silicon/get_inactive_held_item()
+	return FALSE
+
+/mob/living/silicon/handle_high_gravity(gravity)
+	return

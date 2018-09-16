@@ -27,6 +27,7 @@
 	attacktext = "pummels"
 	attack_sound = 'sound/weapons/punch1.ogg'
 	dextrous = TRUE
+	held_items = list(null, null)
 	possible_a_intents = list(INTENT_HELP, INTENT_GRAB, INTENT_DISARM, INTENT_HARM)
 	faction = list("jungle")
 	robust_searching = TRUE
@@ -36,6 +37,8 @@
 	unique_name = TRUE
 	var/list/gorilla_overlays[GORILLA_TOTAL_LAYERS]
 	var/oogas = 0
+
+	do_footstep = TRUE
 
 // Gorillas like to dismember limbs from unconcious mobs.
 // Returns null when the target is not an unconcious carbon mob; a list of limbs (possibly empty) otherwise.
@@ -91,7 +94,7 @@
 
 /mob/living/simple_animal/hostile/gorilla/handle_automated_speech(override)
 	if(speak_chance && (override || prob(speak_chance)))
-		playsound(src, "sound/creatures/gorilla.ogg", 200)
+		playsound(src, 'sound/creatures/gorilla.ogg', 200)
 	..()
 
 /mob/living/simple_animal/hostile/gorilla/can_use_guns(obj/item/G)
@@ -102,6 +105,6 @@
 /mob/living/simple_animal/hostile/gorilla/proc/oogaooga()
 	oogas++
 	if(oogas >= rand(2,6))
-		playsound(src, "sound/creatures/gorilla.ogg", 200)
+		playsound(src, 'sound/creatures/gorilla.ogg', 200)
 		oogas = 0
 

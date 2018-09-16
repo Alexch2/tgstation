@@ -18,7 +18,7 @@
 	attack_verb = list("hit", "pierced", "sliced", "attacked")
 
 /obj/item/pickaxe/suicide_act(mob/living/user)
-	user.visible_message("<span class='suicide'>[user] begins digging into their chest!  It looks like [user.p_theyre()] trying to commit suicide!</span>")
+	user.visible_message("<span class='suicide'>[user] begins digging into [user.p_their()] chest!  It looks like [user.p_theyre()] trying to commit suicide!</span>")
 	if(use_tool(user, user, 30, volume=50))
 		return BRUTELOSS
 	user.visible_message("<span class='suicide'>[user] couldn't do it!</span>")
@@ -63,7 +63,8 @@
 /obj/item/pickaxe/drill/cyborg
 	name = "cyborg mining drill"
 	desc = "An integrated electric mining drill."
-	flags_1 = NODROP_1
+	item_flags = NODROP
+	flags_1 = NONE
 
 /obj/item/pickaxe/drill/diamonddrill
 	name = "diamond-tipped mining drill"

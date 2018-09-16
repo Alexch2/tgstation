@@ -11,7 +11,7 @@ Burning extracts:
 	icon_state = "burning"
 
 /obj/item/slimecross/burning/Initialize()
-	..()
+	. = ..()
 	create_reagents(10)
 
 /obj/item/slimecross/burning/attack_self(mob/user)
@@ -256,7 +256,7 @@ Burning extracts:
 	var/mob/living/L = user
 	if(!istype(L))
 		return
-	user.visible_message("<span class='danger'>[src] absorbs [user], transforming them into a slime!</span>")
+	user.visible_message("<span class='danger'>[src] absorbs [user], transforming [user.p_them()] into a slime!</span>")
 	var/obj/effect/proc_holder/spell/targeted/shapeshift/slimeform/S = new()
 	S.remove_on_restore = TRUE
 	user.mind.AddSpell(S)
@@ -300,7 +300,7 @@ Burning extracts:
 	if(!on || !pictures_left || !isturf(target.loc))
 		return
 	new /obj/effect/timestop(get_turf(target), 2, 50, list(user))
-	..()
+	. = ..()
 	var/text = "The camera fades away"
 	if(disk)
 		text += ", leaving the disk behind!"
@@ -392,7 +392,7 @@ Burning extracts:
 	throw_speed = 2
 	force = 15 //Heavy, but hard to wield.
 	attack_verb = list("bashed","pounded","slammed")
-	flags_2 = SLOWS_WHILE_IN_HAND_2
+	item_flags = SLOWS_WHILE_IN_HAND
 
 
 /obj/effect/proc_holder/spell/targeted/shapeshift/slimeform

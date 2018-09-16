@@ -8,7 +8,7 @@
 	anchored = TRUE
 	light_range = 3
 	var/movechance = 70
-	var/obj/item/assembly/signaler/anomaly/aSignal = null
+	var/obj/item/assembly/signaler/anomaly/aSignal
 	var/area/impact_area
 
 	var/lifespan = 990
@@ -26,10 +26,12 @@
 	aSignal = new(src)
 	aSignal.name = "[name] core"
 	aSignal.code = rand(1,100)
+	aSignal.anomaly_type = type
 
-	aSignal.frequency = rand(MIN_FREE_FREQ, MAX_FREE_FREQ)
-	if(ISMULTIPLE(aSignal.frequency, 2))//signaller frequencies are always uneven!
-		aSignal.frequency++
+	var/frequency = rand(MIN_FREE_FREQ, MAX_FREE_FREQ)
+	if(ISMULTIPLE(frequency, 2))//signaller frequencies are always uneven!
+		frequency++
+	aSignal.set_frequency(frequency)
 
 	if(new_lifespan)
 		lifespan = new_lifespan
@@ -84,9 +86,6 @@
 	density = FALSE
 	var/boing = 0
 
-/obj/effect/anomaly/grav/New()
-	..()
-
 /obj/effect/anomaly/grav/anomalyEffect()
 	..()
 	boing = 1
@@ -106,10 +105,10 @@
 /obj/effect/anomaly/grav/Crossed(mob/A)
 	gravShock(A)
 
-/obj/effect/anomaly/grav/Collide(mob/A)
+/obj/effect/anomaly/grav/Bump(mob/A)
 	gravShock(A)
 
-/obj/effect/anomaly/grav/CollidedWith(atom/movable/AM)
+/obj/effect/anomaly/grav/Bumped(atom/movable/AM)
 	gravShock(AM)
 
 /obj/effect/anomaly/grav/proc/gravShock(mob/living/A)
@@ -118,6 +117,20 @@
 		var/atom/target = get_edge_target_turf(A, get_dir(src, get_step_away(A, src)))
 		A.throw_at(target, 5, 1)
 		boing = 0
+
+/obj/effect/anomaly/grav/high
+	var/grav_field
+
+/obj/effect/anomaly/grav/high/Initialize(mapload, new_lifespan)
+	. = ..()
+	setup_grav_field()
+
+/obj/effect/anomaly/grav/high/proc/setup_grav_field()
+	grav_field = make_field(/datum/proximity_monitor/advanced/gravity, list("current_range" = 7, "host" = src, "gravity_value" = rand(0,3)))
+
+/obj/effect/anomaly/grav/high/Destroy()
+	QDEL_NULL(grav_field)
+	. = ..()
 
 /////////////////////
 
@@ -129,9 +142,6 @@
 	var/shockdamage = 20
 	var/explosive = TRUE
 
-/obj/effect/anomaly/flux/New()
-	..()
-
 /obj/effect/anomaly/flux/anomalyEffect()
 	..()
 	canshock = 1
@@ -141,10 +151,10 @@
 /obj/effect/anomaly/flux/Crossed(mob/living/M)
 	mobShock(M)
 
-/obj/effect/anomaly/flux/Collide(mob/living/M)
+/obj/effect/anomaly/flux/Bump(mob/living/M)
 	mobShock(M)
 
-/obj/effect/anomaly/flux/CollidedWith(atom/movable/AM)
+/obj/effect/anomaly/flux/Bumped(atom/movable/AM)
 	mobShock(AM)
 
 /obj/effect/anomaly/flux/proc/mobShock(mob/living/M)
@@ -177,15 +187,12 @@
 	icon_state = "bluespace"
 	density = TRUE
 
-/obj/effect/anomaly/bluespace/New()
-	..()
-
 /obj/effect/anomaly/bluespace/anomalyEffect()
 	..()
 	for(var/mob/living/M in range(1,src))
 		do_teleport(M, locate(M.x, M.y, M.z), 4)
 
-/obj/effect/anomaly/bluespace/CollidedWith(atom/movable/AM)
+/obj/effect/anomaly/bluespace/Bumped(atom/movable/AM)
 	if(isliving(AM))
 		do_teleport(AM, locate(AM.x, AM.y, AM.z), 8)
 
@@ -250,9 +257,6 @@
 	icon_state = "mustard"
 	var/ticks = 0
 
-/obj/effect/anomaly/pyro/New()
-	..()
-
 /obj/effect/anomaly/pyro/anomalyEffect()
 	..()
 	ticks++
@@ -284,9 +288,6 @@
 	name = "vortex anomaly"
 	icon_state = "bhole3"
 	desc = "That's a nice station you have there. It'd be a shame if something happened to it."
-
-/obj/effect/anomaly/bhole/New()
-	..()
 
 /obj/effect/anomaly/bhole/anomalyEffect()
 	..()

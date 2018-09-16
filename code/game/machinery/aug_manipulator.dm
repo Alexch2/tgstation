@@ -4,7 +4,6 @@
 	icon = 'icons/obj/pda.dmi'
 	icon_state = "pdapainter"
 	density = TRUE
-	anchored = TRUE
 	obj_integrity = 200
 	max_integrity = 200
 	var/obj/item/bodypart/storedpart
@@ -13,7 +12,8 @@
 
 /obj/machinery/aug_manipulator/examine(mob/user)
 	..()
-	to_chat(user, "<span class='notice'>Alt-click to eject the limb.</span>")
+	if(storedpart)
+		to_chat(user, "<span class='notice'>Alt-click to eject the limb.</span>")
 
 /obj/machinery/aug_manipulator/Initialize()
     initial_icon_state = initial(icon_state)

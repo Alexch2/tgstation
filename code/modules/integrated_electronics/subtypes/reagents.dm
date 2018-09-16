@@ -16,59 +16,6 @@
 	set_pin_data(IC_OUTPUT, 1, reagents.total_volume)
 	push_data()
 
-/obj/item/integrated_circuit/reagent/smoke
-	name = "smoke generator"
-	desc = "Unlike most electronics, creating smoke is completely intentional."
-	icon_state = "smoke"
-	extended_desc = "This smoke generator creates clouds of smoke on command. It can also hold liquids inside, which will go \
-	into the smoke clouds when activated. The reagents are consumed when smoke is made."
-	ext_cooldown = 1
-	container_type = OPENCONTAINER
-	volume = 100
-
-	complexity = 20
-	cooldown_per_use = 1 SECONDS
-	inputs = list()
-	outputs = list(
-		"volume used" = IC_PINTYPE_NUMBER,
-		"self reference" = IC_PINTYPE_REF
-		)
-	activators = list(
-		"create smoke" = IC_PINTYPE_PULSE_IN,
-		"on smoked" = IC_PINTYPE_PULSE_OUT,
-		"push ref" = IC_PINTYPE_PULSE_IN
-		)
-	spawn_flags = IC_SPAWN_RESEARCH
-	power_draw_per_use = 20
-	var/smoke_radius = 5
-	var/notified = FALSE
-
-/obj/item/integrated_circuit/reagent/smoke/on_reagent_change(changetype)
-	//reset warning only if we have reagents now
-	if(changetype == ADD_REAGENT)
-		notified = FALSE
-	push_vol()
-
-/obj/item/integrated_circuit/reagent/smoke/do_work(ord)
-	switch(ord)
-		if(1)
-			if(!reagents || (reagents.total_volume < IC_SMOKE_REAGENTS_MINIMUM_UNITS))
-				return
-			var/location = get_turf(src)
-			var/datum/effect_system/smoke_spread/chem/S = new
-			S.attach(location)
-			playsound(location, 'sound/effects/smoke.ogg', 50, 1, -3)
-			if(S)
-				S.set_up(reagents, smoke_radius, location, notified)
-				if(!notified)
-					notified = TRUE
-				S.start()
-			reagents.clear_reagents()
-			activate_pin(2)
-		if(3)
-			set_pin_data(IC_OUTPUT, 2, WEAKREF(src))
-			push_data()
-
 // Hydroponics trays have no reagents holder and handle reagents in their own snowflakey way.
 // This is a dirty hack to make injecting reagents into them work.
 // TODO: refactor that.
@@ -99,10 +46,10 @@
 
 /obj/item/integrated_circuit/reagent/injector
 	name = "integrated hypo-injector"
-	desc = "This scary looking thing is able to pump liquids into whatever it's pointed at."
+	desc = "This scary looking thing is able to pump liquids into, or suck liquids out of, whatever it's pointed at."
 	icon_state = "injector"
-	extended_desc = "This autoinjector can push reagents into another container or someone else outside of the machine. The target \
-	must be adjacent to the machine, and if it is a person, they cannot be wearing thick clothing. Negative given amount makes injector suck out reagents."
+	extended_desc = "This autoinjector can push up to 30 units of reagents into another container or someone else outside of the machine. The target \
+	must be adjacent to the machine, and if it is a person, they cannot be wearing thick clothing. Negative given amounts makes the injector suck out reagents instead."
 
 	container_type = OPENCONTAINER
 	volume = 30
@@ -118,7 +65,7 @@
 		)
 	outputs = list(
 		"volume used" = IC_PINTYPE_NUMBER,
-		"self reference" = IC_PINTYPE_REF
+		"self reference" = IC_PINTYPE_SELFREF
 		)
 	activators = list(
 		"inject" = IC_PINTYPE_PULSE_IN,
@@ -186,7 +133,7 @@
 
 			//Always log attemped injections for admins
 			var/contained = reagents.log_list()
-			add_logs(src, L, "attemped to inject", addition="which had [contained]")
+			log_combat(src, L, "attempted to inject", addition="which had [contained]")
 			L.visible_message("<span class='danger'>[acting_object] is trying to inject [L]!</span>", \
 								"<span class='userdanger'>[acting_object] is trying to inject you!</span>")
 			busy = TRUE
@@ -194,7 +141,7 @@
 				var/fraction = min(transfer_amount/reagents.total_volume, 1)
 				reagents.reaction(L, INJECT, fraction)
 				reagents.trans_to(L, transfer_amount)
-				add_logs(src, L, "injected", addition="which had [contained]")
+				log_combat(src, L, "injected", addition="which had [contained]")
 				L.visible_message("<span class='danger'>[acting_object] injects [L] with its needle!</span>", \
 									"<span class='userdanger'>[acting_object] injects you with its needle!</span>")
 			else
@@ -252,7 +199,7 @@
 	icon_state = "reagent_pump"
 	extended_desc = "This is a pump which will move liquids from the source ref to the target ref. The third pin determines \
 	how much liquid is moved per pulse, between 0 and 50. The pump can move reagents to any open container inside the machine, or \
-	outside the machine if it is next to the machine."
+	outside the machine if it is adjacent to the machine."
 
 	complexity = 8
 	inputs = list("source" = IC_PINTYPE_REF, "target" = IC_PINTYPE_REF, "injection amount" = IC_PINTYPE_NUMBER)
@@ -320,7 +267,7 @@
 	inputs = list()
 	outputs = list(
 		"volume used" = IC_PINTYPE_NUMBER,
-		"self reference" = IC_PINTYPE_REF
+		"self reference" = IC_PINTYPE_SELFREF
 		)
 	activators = list("push ref" = IC_PINTYPE_PULSE_OUT)
 	spawn_flags = IC_SPAWN_DEFAULT|IC_SPAWN_RESEARCH
@@ -346,7 +293,7 @@
 
 /obj/item/integrated_circuit/reagent/storage/cryo
 	name = "cryo reagent storage"
-	desc = "Stores liquid inside the device away from electrical components. It can store up to 60u. This will also suppress reactions."
+	desc = "Stores liquid inside the device away from electrical components. It can store up to 60u. This will also prevent reactions."
 	icon_state = "reagent_storage_cryo"
 	extended_desc = "This is effectively an internal cryo beaker."
 
@@ -359,7 +306,7 @@
 
 /obj/item/integrated_circuit/reagent/storage/grinder
 	name = "reagent grinder"
-	desc = "This is reagent grinder. It accepts a ref to something and refines it into reagents. It can store up to 100u."
+	desc = "This is a reagent grinder. It accepts a ref to something, and refines it into reagents. It can store up to 100u."
 	icon_state = "blender"
 	extended_desc = ""
 	inputs = list(
@@ -367,7 +314,7 @@
 		)
 	outputs = list(
 		"volume used" = IC_PINTYPE_NUMBER,
-		"self reference" = IC_PINTYPE_REF
+		"self reference" = IC_PINTYPE_SELFREF
 		)
 	activators = list(
 		"grind" = IC_PINTYPE_PULSE_IN,
@@ -404,9 +351,9 @@
 	activate_pin(3)
 	return FALSE
 
-obj/item/integrated_circuit/reagent/storage/juicer
+/obj/item/integrated_circuit/reagent/storage/juicer
 	name = "reagent juicer"
-	desc = "This is reagent juicer. It accepts a ref to something and refines it into reagents. It can store up to 100u."
+	desc = "This is a reagent juicer. It accepts a ref to something and refines it into reagents. It can store up to 100u."
 	icon_state = "blender"
 	extended_desc = ""
 	inputs = list(
@@ -414,7 +361,7 @@ obj/item/integrated_circuit/reagent/storage/juicer
 		)
 	outputs = list(
 		"volume used" = IC_PINTYPE_NUMBER,
-		"self reference" = IC_PINTYPE_REF
+		"self reference" = IC_PINTYPE_SELFREF
 		)
 	activators = list(
 		"juice" = IC_PINTYPE_PULSE_IN,
@@ -454,12 +401,12 @@ obj/item/integrated_circuit/reagent/storage/juicer
 	name = "reagent scanner"
 	desc = "Stores liquid inside the device away from electrical components. It can store up to 60u. On pulse this beaker will send list of contained reagents."
 	icon_state = "reagent_scan"
-	extended_desc = "Mostly useful for reagent filter."
+	extended_desc = "Mostly useful for filtering reagents."
 
 	complexity = 8
 	outputs = list(
 		"volume used" = IC_PINTYPE_NUMBER,
-		"self reference" = IC_PINTYPE_REF,
+		"self reference" = IC_PINTYPE_SELFREF,
 		"list of reagents" = IC_PINTYPE_LIST
 		)
 	activators = list(
@@ -482,12 +429,12 @@ obj/item/integrated_circuit/reagent/storage/juicer
 
 /obj/item/integrated_circuit/reagent/filter
 	name = "reagent filter"
-	desc = "Filtering liquids by list of desired or unwanted reagents."
+	desc = "Filters liquids by list of desired or unwanted reagents."
 	icon_state = "reagent_filter"
-	extended_desc = "This is a filter which will move liquids from the source to the target. \
-	It will move all reagents, except those in the unwanted list, given the fourth pin if amount value is positive, \
-	or it will move only desired reagents if amount is negative. The third pin determines \
-	how much reagent is moved per pulse, between 0 and 50. Amount is given for each separate reagent."
+	extended_desc = "This is a filter which will move liquids from the source to its target. \
+	If the amount in the fourth pin is positive, it will move all reagents except those in the unwanted list. \
+	If the amount in the fourth pin is negative, it will only move the reagents in the wanted list. \
+	The third pin determines how many reagents are moved per pulse, between 0 and 50. Amount is given for each separate reagent."
 
 	complexity = 8
 	inputs = list(
@@ -561,7 +508,7 @@ obj/item/integrated_circuit/reagent/storage/juicer
 		"on" = IC_PINTYPE_BOOLEAN
 		)
 	inputs_default = list("1" = 300)
-	outputs = list("volume used" = IC_PINTYPE_NUMBER,"self reference" = IC_PINTYPE_REF,"temperature" = IC_PINTYPE_NUMBER)
+	outputs = list("volume used" = IC_PINTYPE_NUMBER,"self reference" = IC_PINTYPE_SELFREF,"temperature" = IC_PINTYPE_NUMBER)
 	spawn_flags = IC_SPAWN_RESEARCH
 	var/heater_coefficient = 0.1
 

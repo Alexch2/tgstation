@@ -76,6 +76,25 @@
 		push_data()
 		activate_pin(1)
 
+/obj/item/integrated_circuit/input/colorpad
+	name = "color pad"
+	desc = "This small color pad allows someone to input a hexadecimal color into the system."
+	icon_state = "colorpad"
+	complexity = 2
+	can_be_asked_input = 1
+	inputs = list()
+	outputs = list("color entered" = IC_PINTYPE_STRING)
+	activators = list("on entered" = IC_PINTYPE_PULSE_IN)
+	spawn_flags = IC_SPAWN_DEFAULT|IC_SPAWN_RESEARCH
+	power_draw_per_use = 4
+
+/obj/item/integrated_circuit/input/colorpad/ask_for_input(mob/user)
+	var/new_color = input(user, "Enter a color, please.", "Color", "#ffffff") as color|null
+	if(new_color && user.IsAdvancedToolUser())
+		set_pin_data(IC_OUTPUT, 1, new_color)
+		push_data()
+		activate_pin(1)
+
 /obj/item/integrated_circuit/input/med_scanner
 	name = "integrated medical analyser"
 	desc = "A very small version of the common medical analyser. This allows the machine to know how healthy someone is."
@@ -143,14 +162,9 @@
 	push_data()
 	activate_pin(2)
 
-//please delete at a later date after people stop using the old named circuit
-/obj/item/integrated_circuit/input/adv_med_scanner/old
-	name = "integrated advanced medical analyser"
-	spawn_flags = 0
-
 /obj/item/integrated_circuit/input/slime_scanner
 	name = "slime_scanner"
-	desc = "A very small version of the xenobio analyser. This allows the machine to know every needed properties of slime. Output mutation list is non associative."
+	desc = "A very small version of the xenobio analyser. This allows the machine to know every needed properties of slime. Output mutation list is non-associative."
 	icon_state = "medscan_adv"
 	complexity = 12
 	inputs = list("target" = IC_PINTYPE_REF)
@@ -193,8 +207,8 @@
 
 /obj/item/integrated_circuit/input/plant_scanner
 	name = "integrated plant analyzer"
-	desc = "A very small version of the plant analyser. This allows the machine to know all valuable params of plants in trays. \
-			It cannot scan seeds nor fruits, only plants."
+	desc = "A very small version of the plant analyser. This allows the machine to know all valuable parameters of plants in trays. \
+			It can only scan plants, not seeds or fruits."
 	icon_state = "medscan_adv"
 	complexity = 12
 	inputs = list("target" = IC_PINTYPE_REF)
@@ -259,9 +273,9 @@
 
 /obj/item/integrated_circuit/input/gene_scanner
 	name = "gene scanner"
-	desc = "This circuit will scan plant for traits and reagent genes. Output is non-associative."
+	desc = "This circuit will scan the target plant for traits and reagent genes. Output is non-associative."
 	extended_desc = "This allows the machine to scan plants in trays for reagent and trait genes. \
-			It cannot scan seeds nor fruits, only plants."
+			It can only scan plants, not seeds or fruits."
 	inputs = list(
 		"target" = IC_PINTYPE_REF
 	)
@@ -358,9 +372,9 @@
 
 /obj/item/integrated_circuit/input/turfpoint
 	name = "Tile pointer"
-	desc = "This circuit will get tile ref with given absolute coordinates."
+	desc = "This circuit will get a tile ref with the provided absolute coordinates."
 	extended_desc = "If the machine	cannot see the target, it will not be able to calculate the correct direction.\
-	This circuit works only inside an assembly."
+	This circuit only works while inside an assembly."
 	icon_state = "numberpad"
 	complexity = 5
 	inputs = list("X" = IC_PINTYPE_NUMBER,"Y" = IC_PINTYPE_NUMBER)
@@ -461,7 +475,7 @@
 /obj/item/integrated_circuit/input/adjacent_locator
 	name = "adjacent locator"
 	desc = "This is needed for certain devices that demand a reference for a target to act upon. This type only locates something \
-	that is standing a meter away from the machine."
+	that is standing up to a meter away from the machine."
 	extended_desc = "The first pin requires a ref to the kind of object that you want the locator to acquire. This means that it will \
 	give refs to nearby objects that are similar. If more than one valid object is found nearby, it will choose one of them at \
 	random."
@@ -500,9 +514,9 @@
 /obj/item/integrated_circuit/input/advanced_locator_list
 	complexity = 6
 	name = "list advanced locator"
-	desc = "This is needed for certain devices that demand list of names for a targets to act upon. This type locates something \
-	that is standing in given radius up to 8 meters. Output is non-associative. Input will only consider keys if associative."
-	extended_desc = "The first pin requires a list of kinds of objects that you want the locator to acquire. It will locate nearby objects by name and description, \
+	desc = "This is needed for certain devices that demand list of names for a target to act upon. This type locates something \
+	that is standing in given radius of up to 8 meters. Output is non-associative. Input will only consider keys if associative."
+	extended_desc = "The first pin requires a list of the kinds of objects that you want the locator to acquire. It will locate nearby objects by name and description, \
 	and will then provide a list of all found objects which are similar. \
 	The second pin is a radius."
 	inputs = list("desired type ref" = IC_PINTYPE_LIST, "radius" = IC_PINTYPE_NUMBER)
@@ -524,28 +538,38 @@
 	var/datum/integrated_io/I = inputs[1]
 	var/datum/integrated_io/O = outputs[1]
 	O.data = null
-	var/turf/T = get_turf(src)
-	var/list/nearby_things = view(radius,T)
-	var/list/valid_things = list()
 	var/list/input_list = list()
 	input_list = I.data
-	for(var/item in input_list)
-		if(!isnull(item) && !isnum(item))
-			if(istext(item))
-				for(var/atom/thing in nearby_things)
-					if(findtext(addtext(thing.name," ",thing.desc), item, 1, 0) )
+	if(length(input_list))	//if there is no input don't do anything.
+		var/turf/T = get_turf(src)
+		var/list/nearby_things = view(radius,T)
+		var/list/valid_things = list()
+		for(var/item in input_list)
+			if(!isnull(item) && !isnum(item))
+				if(istext(item))
+					for(var/i in nearby_things)
+						var/atom/thing = i
+						if(ismob(thing) && !isliving(thing))
+							continue
+						if(findtext(addtext(thing.name," ",thing.desc), item, 1, 0) )
+							valid_things.Add(WEAKREF(thing))
+				else
+					var/atom/A = item
+					var/desired_type = A.type
+					for(var/i in nearby_things)
+						var/atom/thing = i
+						if(thing.type != desired_type)
+							continue
+						if(ismob(thing) && !isliving(thing))
+							continue
 						valid_things.Add(WEAKREF(thing))
-			else
-				var/atom/A = item
-				var/desired_type = A.type
-				for(var/atom/thing in nearby_things)
-					if(thing.type != desired_type)
-						continue
-					valid_things.Add(WEAKREF(thing))
-	if(valid_things.len)
-		O.data = valid_things
-		O.push_data()
-		activate_pin(2)
+		if(valid_things.len)
+			O.data = valid_things
+			O.push_data()
+			activate_pin(2)
+		else
+			O.push_data()
+			activate_pin(3)
 	else
 		O.push_data()
 		activate_pin(3)
@@ -554,10 +578,10 @@
 	complexity = 6
 	name = "advanced locator"
 	desc = "This is needed for certain devices that demand a reference for a target to act upon. This type locates something \
-	that is standing in given radius up to 8 meters"
-	extended_desc = "The first pin requires a ref to a kind of object that you want the locator to acquire. This means that it will \
-	give refs to nearby objects which are similar. If this pin is string, this locator will search for an \
-	item by matching desired text in it's name and description. If more than one valid object is found nearby, it will choose one of them at \
+	that is standing in given radius of up to 8 meters"
+	extended_desc = "The first pin requires a ref to the kind of object that you want the locator to acquire. This means that it will \
+	give refs to nearby objects which are similar. If this pin is a string, the locator will search for an \
+	item matching the desired text in its name and description. If more than one valid object is found nearby, it will choose one of them at \
 	random. The second pin is a radius."
 	inputs = list("desired type" = IC_PINTYPE_ANY, "radius" = IC_PINTYPE_NUMBER)
 	outputs = list("located ref" = IC_PINTYPE_REF)
@@ -583,12 +607,18 @@
 		var/atom/A = I.data.resolve()
 		var/desired_type = A.type
 		if(desired_type)
-			for(var/atom/thing in nearby_things)
+			for(var/i in nearby_things)
+				var/atom/thing = i
+				if(ismob(thing) && !isliving(thing))
+					continue
 				if(thing.type == desired_type)
 					valid_things.Add(thing)
 	else if(istext(I.data))
 		var/DT = I.data
-		for(var/atom/thing in nearby_things)
+		for(var/i in nearby_things)
+			var/atom/thing = i
+			if(ismob(thing) && !isliving(thing))
+				continue
 			if(findtext(addtext(thing.name," ",thing.desc), DT, 1, 0) )
 				valid_things.Add(thing)
 	if(valid_things.len)
@@ -599,13 +629,9 @@
 		O.push_data()
 		activate_pin(3)
 
-
-
-
-
 /obj/item/integrated_circuit/input/signaler
 	name = "integrated signaler"
-	desc = "Signals from a signaler can be received with this, allowing for remote control. Additionally, it can send signals as well."
+	desc = "Signals from a signaler can be received with this, allowing for remote control. It can also send signals."
 	extended_desc = "When a signal is received from another signaler, the 'on signal received' activator pin will be pulsed. \
 	The two input pins are to configure the integrated signaler's settings. Note that the frequency should not have a decimal in it, \
 	meaning the default frequency is expressed as 1457, not 145.7. To send a signal, pulse the 'send signal' activator pin."
@@ -625,6 +651,7 @@
 	var/frequency = FREQ_SIGNALER
 	var/code = DEFAULT_SIGNALER_CODE
 	var/datum/radio_frequency/radio_connection
+	var/hearing_range = 1
 
 /obj/item/integrated_circuit/input/signaler/Initialize()
 	. = ..()
@@ -678,23 +705,26 @@
 		return 0
 
 	activate_pin(3)
-	audible_message("[icon2html(src, hearers(src))] *beep* *beep*", null, 1)
+	audible_message("[icon2html(src, hearers(src))] *beep* *beep* *beep*", null, hearing_range)
+	for(var/CHM in get_hearers_in_view(hearing_range, src))
+		if(ismob(CHM))
+			var/mob/LM = CHM
+			LM.playsound_local(get_turf(src), 'sound/machines/triple_beep.ogg', ASSEMBLY_BEEP_VOLUME, TRUE)
 
 /obj/item/integrated_circuit/input/ntnet_packet
 	name = "NTNet networking circuit"
-	desc = "Enables the sending and receiving of messages on NTNet via packet data protocol."
-	extended_desc = "Data can be send or received using the second pin on each side, \
+	desc = "Enables the sending and receiving of messages over NTNet via packet data protocol."
+	extended_desc = "Data can be sent or received using the second pin on each side, \
 	with additonal data reserved for the third pin. When a message is received, the second activation pin \
-	will pulse whatever's connected to it. Pulsing the first activation pin will send a message. Message \
-	can be send to multiple recepients. Addresses must be separated with ; symbol."
+	will pulse whatever is connected to it. Pulsing the first activation pin will send a message. Messages \
+	can be sent to multiple recepients. Addresses must be separated with a semicolon, like this: Address1;Address2;Etc."
 	icon_state = "signal"
 	complexity = 2
 	cooldown_per_use = 1
 	inputs = list(
 		"target NTNet addresses"= IC_PINTYPE_STRING,
 		"data to send"			= IC_PINTYPE_STRING,
-		"secondary text"		= IC_PINTYPE_STRING,
-		"passkey"				= IC_PINTYPE_STRING,							//No this isn't a real passkey encryption scheme but that's why you keep your nodes secure so no one can find it out!
+		"secondary text"		= IC_PINTYPE_STRING
 		)
 	outputs = list(
 		"address received"			= IC_PINTYPE_STRING,
@@ -720,14 +750,13 @@
 	var/target_address = get_pin_data(IC_INPUT, 1)
 	var/message = get_pin_data(IC_INPUT, 2)
 	var/text = get_pin_data(IC_INPUT, 3)
-	var/key = get_pin_data(IC_INPUT, 4)
 
 	var/datum/netdata/data = new
 	data.recipient_ids = splittext(target_address, ";")
-	data.standard_format_data(message, text, key)
+	data.standard_format_data(message, text, assembly ? strtohex(XorEncrypt(json_encode(assembly.access_card.access), SScircuit.cipherkey)) : null)
 	ntnet_send(data)
 
-/obj/item/integrated_circuit/input/ntnet_recieve(datum/netdata/data)
+/obj/item/integrated_circuit/input/ntnet_receive(datum/netdata/data)
 	set_pin_data(IC_OUTPUT, 1, data.sender_id)
 	set_pin_data(IC_OUTPUT, 2, data.data["data"])
 	set_pin_data(IC_OUTPUT, 3, data.data["data_secondary"])
@@ -738,12 +767,12 @@
 	activate_pin(2)
 
 /obj/item/integrated_circuit/input/ntnet_advanced
-	name = "Low level NTNet transreciever"
-	desc = "Enables the sending and receiving of messages on NTNet via packet data protocol. Allows advanced control of message contents and signalling. Must use associative lists. Outputs associative list. Has a slower transmission rate than normal NTNet circuits, due to increased data processing complexity.."
-	extended_desc = "Data can be send or received using the second pin on each side, \
-	with additonal data reserved for the third pin. When a message is received, the second activation pin \
-	will pulse whatever's connected to it. Pulsing the first activation pin will send a message. Message \
-	can be send to multiple recepients. Addresses must be separated with ; symbol."
+	name = "Low level NTNet transreceiver"
+	desc = "Enables the sending and receiving of messages over NTNet via packet data protocol. Allows advanced control of message contents and signalling. Must use associative lists. Outputs associative list. Has a slower transmission rate than normal NTNet circuits, due to increased data processing complexity."
+	extended_desc = "Data can be sent or received using the second pin on each side, \
+	When a message is received, the second activation pin will pulse whatever is connected to it. \
+	Pulsing the first activation pin will send a message. Messages can be sent to multiple recepients. \
+	Addresses must be separated with a semicolon, like this: Address1;Address2;Etc."
 	icon_state = "signal"
 	complexity = 4
 	cooldown_per_use = 10
@@ -751,7 +780,7 @@
 		"target NTNet addresses"= IC_PINTYPE_STRING,
 		"data"					= IC_PINTYPE_LIST,
 		)
-	outputs = list("recieved data" = IC_PINTYPE_LIST, "is_broadcast" = IC_PINTYPE_BOOLEAN)
+	outputs = list("received data" = IC_PINTYPE_LIST, "is_broadcast" = IC_PINTYPE_BOOLEAN)
 	activators = list("send data" = IC_PINTYPE_PULSE_IN, "on data received" = IC_PINTYPE_PULSE_OUT)
 	spawn_flags = IC_SPAWN_DEFAULT|IC_SPAWN_RESEARCH
 	action_flags = IC_ACTION_LONG_RANGE
@@ -773,9 +802,10 @@
 	var/datum/netdata/data = new
 	data.recipient_ids = splittext(target_address, ";")
 	data.data = message
+	data.passkey = assembly.access_card.access
 	ntnet_send(data)
 
-/obj/item/integrated_circuit/input/ntnet_advanced/ntnet_recieve(datum/netdata/data)
+/obj/item/integrated_circuit/input/ntnet_advanced/ntnet_receive(datum/netdata/data)
 	set_pin_data(IC_OUTPUT, 1, data.data)
 	set_pin_data(IC_OUTPUT, 2, data.broadcast)
 	push_data()
@@ -785,11 +815,11 @@
 /obj/item/integrated_circuit/input/gps
 	name = "global positioning system"
 	desc = "This allows you to easily know the position of a machine containing this device."
-	extended_desc = "The GPS's coordinates it gives is absolute, not relative."
+	extended_desc = "The coordinates that the GPS outputs are absolute, not relative. The full coords output has the coords separated by commas and is in string format."
 	icon_state = "gps"
 	complexity = 4
 	inputs = list()
-	outputs = list("X"= IC_PINTYPE_NUMBER, "Y" = IC_PINTYPE_NUMBER, "Z" = IC_PINTYPE_NUMBER)
+	outputs = list("X"= IC_PINTYPE_NUMBER, "Y" = IC_PINTYPE_NUMBER, "Z" = IC_PINTYPE_NUMBER, "full coords" = IC_PINTYPE_STRING)
 	activators = list("get coordinates" = IC_PINTYPE_PULSE_IN, "on get coordinates" = IC_PINTYPE_PULSE_OUT)
 	spawn_flags = IC_SPAWN_DEFAULT|IC_SPAWN_RESEARCH
 	power_draw_per_use = 30
@@ -800,19 +830,20 @@
 	set_pin_data(IC_OUTPUT, 1, null)
 	set_pin_data(IC_OUTPUT, 2, null)
 	set_pin_data(IC_OUTPUT, 3, null)
+	set_pin_data(IC_OUTPUT, 4, null)
 	if(!T)
 		return
 
 	set_pin_data(IC_OUTPUT, 1, T.x)
 	set_pin_data(IC_OUTPUT, 2, T.y)
 	set_pin_data(IC_OUTPUT, 3, T.z)
-
+	set_pin_data(IC_OUTPUT, 4, "[T.x],[T.y],[T.z]")
 	push_data()
 	activate_pin(2)
 
 /obj/item/integrated_circuit/input/microphone
 	name = "microphone"
-	desc = "Useful for spying on people or for voice activated machines."
+	desc = "Useful for spying on people, or for voice-activated machines."
 	extended_desc = "This will automatically translate most languages it hears to Galactic Common. \
 	The first activation pin is always pulsed when the circuit hears someone talk, while the second one \
 	is only triggered if it hears someone speaking a language other than Galactic Common."
@@ -829,6 +860,7 @@
 	power_draw_per_use = 5
 
 /obj/item/integrated_circuit/input/microphone/Hear(message, atom/movable/speaker, message_langs, raw_message, radio_freq, spans, message_mode)
+	. = ..()
 	var/translated = FALSE
 	if(speaker && message)
 		if(raw_message)
@@ -854,8 +886,8 @@
 	spawn_flags = IC_SPAWN_DEFAULT|IC_SPAWN_RESEARCH
 	power_draw_per_use = 120
 
-/obj/item/integrated_circuit/input/sensor/sense(var/atom/A,mob/user,prox)
-	if(!prox)
+/obj/item/integrated_circuit/input/sensor/sense(atom/A, mob/user, prox)
+	if(!prox || !A || (ismob(A) && !isliving(A)))
 		return FALSE
 	if(!check_then_do_work())
 		return FALSE
@@ -866,6 +898,7 @@
 			return FALSE
 	set_pin_data(IC_OUTPUT, 1, WEAKREF(A))
 	push_data()
+	to_chat(user, "<span class='notice'>You scan [A] with [assembly].</span>")
 	activate_pin(1)
 	return TRUE
 
@@ -881,8 +914,8 @@
 	spawn_flags = IC_SPAWN_DEFAULT|IC_SPAWN_RESEARCH
 	power_draw_per_use = 120
 
-/obj/item/integrated_circuit/input/sensor/ranged/sense(var/atom/A,mob/user)
-	if(!user)
+/obj/item/integrated_circuit/input/sensor/ranged/sense(atom/A, mob/user)
+	if(!user || !A || (ismob(A) && !isliving(A)))
 		return FALSE
 	if(user.client)
 		if(!(A in view(user.client)))
@@ -898,13 +931,14 @@
 			return FALSE
 	set_pin_data(IC_OUTPUT, 1, WEAKREF(A))
 	push_data()
+	to_chat(user, "<span class='notice'>You scan [A] with [assembly].</span>")
 	activate_pin(1)
 	return TRUE
 
 /obj/item/integrated_circuit/input/obj_scanner
 	name = "scanner"
 	desc = "Scans and obtains a reference for any objects you use on the assembly."
-	extended_desc = "If the 'put down' pin is set to true, the assembly will take the scanned object from your hands to it's location. \
+	extended_desc = "If the 'put down' pin is set to true, the assembly will take the scanned object from your hands to its location. \
 	Useful for interaction with the grabber. The scanner only works using the help intent."
 	icon_state = "recorder"
 	complexity = 4
@@ -924,6 +958,7 @@
 		user.transferItemToLoc(A,drop_location())
 	set_pin_data(IC_OUTPUT, 1, WEAKREF(A))
 	push_data()
+	to_chat(user, "<span class='notice'>You let [assembly] scan [A].</span>")
 	activate_pin(1)
 	return TRUE
 
@@ -931,7 +966,7 @@
 	name = "internal battery monitor"
 	desc = "This monitors the charge level of an internal battery."
 	icon_state = "internalbm"
-	extended_desc = "This circuit will give you values of charge, max charge, and percentage of the internal battery on demand."
+	extended_desc = "This circuit will give you the values of charge, max charge, and the current percentage of the internal battery on demand."
 	w_class = WEIGHT_CLASS_TINY
 	complexity = 1
 	inputs = list()
@@ -964,9 +999,9 @@
 
 /obj/item/integrated_circuit/input/externalbm
 	name = "external battery monitor"
-	desc = "This can help to watch battery state of any device in view"
+	desc = "This can read the battery state of any device in view."
 	icon_state = "externalbm"
-	extended_desc = "This circuit will give you values of charge, max charge, and percentage of any device or battery in view"
+	extended_desc = "This circuit will give you the charge, max charge, and the current percentage values of any device or battery in view."
 	w_class = WEIGHT_CLASS_TINY
 	complexity = 2
 	inputs = list("target" = IC_PINTYPE_REF)
@@ -999,7 +1034,7 @@
 
 /obj/item/integrated_circuit/input/ntnetsc
 	name = "NTNet scanner"
-	desc = "This can return NTNet IDs of a component inside the given object, if there are any."
+	desc = "This can return the NTNet IDs of a component inside the given object, if there are any."
 	icon_state = "signalsc"
 	w_class = WEIGHT_CLASS_TINY
 	complexity = 2
@@ -1084,3 +1119,103 @@
 	else
 		activate_pin(3)
 
+/obj/item/integrated_circuit/input/atmospheric_analyzer
+	name = "atmospheric analyzer"
+	desc = "A miniaturized analyzer which can scan anything that contains gases. Leave target as NULL to scan the air around the assembly."
+	extended_desc = "The nth element of gas amounts is the number of moles of the \
+					nth gas in gas list. \
+					Pressure is in kPa, temperature is in Kelvin. \
+					Due to programming limitations, scanning an object that does \
+					not contain a gas will return the air around it instead."
+	spawn_flags = IC_SPAWN_DEFAULT|IC_SPAWN_RESEARCH
+	inputs = list(
+			"target" = IC_PINTYPE_REF
+			)
+	outputs = list(
+			"gas list" = IC_PINTYPE_LIST,
+			"gas amounts" = IC_PINTYPE_LIST,
+			"total moles" = IC_PINTYPE_NUMBER,
+			"pressure" = IC_PINTYPE_NUMBER,
+			"temperature" = IC_PINTYPE_NUMBER,
+			"volume" = IC_PINTYPE_NUMBER
+			)
+	activators = list(
+			"scan" = IC_PINTYPE_PULSE_IN,
+			"on success" = IC_PINTYPE_PULSE_OUT,
+			"on failure" = IC_PINTYPE_PULSE_OUT
+			)
+	power_draw_per_use = 5
+
+/obj/item/integrated_circuit/input/atmospheric_analyzer/do_work()
+	for(var/i=1 to 6)
+		set_pin_data(IC_OUTPUT, i, null)
+	var/atom/target = get_pin_data_as_type(IC_INPUT, 1, /atom)
+	if(!target)
+		target = get_turf(src)
+	if( get_dist(get_turf(target),get_turf(src)) > 1 )
+		activate_pin(3)
+		return
+
+	var/datum/gas_mixture/air_contents = target.return_air()
+	if(!air_contents)
+		activate_pin(3)
+		return
+
+	var/list/gases = air_contents.gases
+	var/list/gas_names = list()
+	var/list/gas_amounts = list()
+	for(var/id in gases)
+		var/name = gases[id][GAS_META][META_GAS_NAME]
+		var/amt = round(gases[id][MOLES], 0.001)
+		gas_names.Add(name)
+		gas_amounts.Add(amt)
+
+	set_pin_data(IC_OUTPUT, 1, gas_names)
+	set_pin_data(IC_OUTPUT, 2, gas_amounts)
+	set_pin_data(IC_OUTPUT, 3, round(air_contents.total_moles(), 0.001))
+	set_pin_data(IC_OUTPUT, 4, round(air_contents.return_pressure(), 0.001))
+	set_pin_data(IC_OUTPUT, 5, round(air_contents.temperature, 0.001))
+	set_pin_data(IC_OUTPUT, 6, round(air_contents.return_volume(), 0.001))
+	push_data()
+	activate_pin(2)
+
+/obj/item/integrated_circuit/input/data_card_reader
+	name = "data card reader"
+	desc = "A circuit that can read from and write to data cards."
+	extended_desc = "Setting the \"write mode\" boolean to true will cause any data cards that are used on the assembly to replace\
+ their existing function and data strings with the given strings, if it is set to false then using a data card on the assembly will cause\
+ the function and data strings stored on the card to be written to the output pins."
+	icon_state = "card_reader"
+	complexity = 4
+	spawn_flags = IC_SPAWN_DEFAULT|IC_SPAWN_RESEARCH
+	inputs = list(
+		"function" = IC_PINTYPE_STRING,
+		"data to store" = IC_PINTYPE_STRING,
+		"write mode" = IC_PINTYPE_BOOLEAN
+	)
+	outputs = list(
+		"function" = IC_PINTYPE_STRING,
+		"stored data" = IC_PINTYPE_STRING
+	)
+	activators = list(
+		"on write" = IC_PINTYPE_PULSE_OUT,
+		"on read" = IC_PINTYPE_PULSE_OUT
+	)
+
+/obj/item/integrated_circuit/input/data_card_reader/attackby_react(obj/item/I, mob/living/user, intent)
+	var/obj/item/card/data/card = I.GetCard()
+	var/write_mode = get_pin_data(IC_INPUT, 3)
+	if(card)
+		if(write_mode == TRUE)
+			card.function = get_pin_data(IC_INPUT, 1)
+			card.data = get_pin_data(IC_INPUT, 2)
+			push_data()
+			activate_pin(1)
+		else
+			set_pin_data(IC_OUTPUT, 1, card.function)
+			set_pin_data(IC_OUTPUT, 2, card.data)
+			push_data()
+			activate_pin(2)
+	else
+		return FALSE
+	return TRUE

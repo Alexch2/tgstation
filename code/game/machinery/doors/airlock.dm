@@ -147,7 +147,6 @@
 				welded = TRUE
 			if(24 to 30)
 				panel_open = TRUE
-
 	update_icon()
 
 /obj/machinery/door/airlock/ComponentInitialize()
@@ -178,7 +177,7 @@
 		limit--
 	while(!FoundDoor && limit)
 	if (!FoundDoor)
-		log_world("### MAP WARNING, [src] at [get_area_name(src, TRUE)] [COORD(src)] failed to find a valid airlock to cyclelink with!")
+		log_world("### MAP WARNING, [src] at [AREACOORD(src)] failed to find a valid airlock to cyclelink with!")
 		return
 	FoundDoor.cyclelinkedairlock = src
 	cyclelinkedairlock = FoundDoor
@@ -192,7 +191,7 @@
 /obj/machinery/door/airlock/check_access_ntnet(datum/netdata/data)
 	return !requiresID() || ..()
 
-/obj/machinery/door/airlock/ntnet_recieve(datum/netdata/data)
+/obj/machinery/door/airlock/ntnet_receive(datum/netdata/data)
 	// Check if the airlock is powered and can accept control packets.
 	if(!hasPower() || !canAIControl())
 		return
@@ -201,7 +200,7 @@
 	if(!check_access_ntnet(data))
 		return
 
-	// Handle recieved packet.
+	// Handle received packet.
 	var/command = lowertext(data.data["data"])
 	var/command_value = lowertext(data.data["data_secondary"])
 	switch(command)
@@ -323,12 +322,12 @@
 					return
 			else
 				return
-		else if(user.hallucinating() && ishuman(user) && prob(4) && !operating)
+		else if(user.hallucinating() && ishuman(user) && prob(1) && !operating)
 			var/mob/living/carbon/human/H = user
 			if(H.gloves)
 				var/obj/item/clothing/gloves/G = H.gloves
 				if(G.siemens_coefficient)//not insulated
-					hallucinate_shock(H)
+					new /datum/hallucination/shock(H)
 					return
 	if (cyclelinkedairlock)
 		if (!shuttledocked && !emergency && !cyclelinkedairlock.shuttledocked && !cyclelinkedairlock.emergency && allowed(user))
@@ -337,34 +336,6 @@
 			else
 				addtimer(CALLBACK(cyclelinkedairlock, .proc/close), 2)
 	..()
-
-/obj/machinery/door/airlock/proc/hallucinate_shock(mob/living/user)
-	var/image/shock_image = image(user, user, dir = user.dir)
-	var/image/electrocution_skeleton_anim = image('icons/mob/human.dmi', user, icon_state = "electrocuted_base", layer=ABOVE_MOB_LAYER)
-	shock_image.color = rgb(0,0,0)
-	shock_image.override = TRUE
-	electrocution_skeleton_anim.appearance_flags |= RESET_COLOR|KEEP_APART
-
-	to_chat(user, "<span class='userdanger'>You feel a powerful shock course through your body!</span>")
-	if(user.client)
-		user.client.images |= shock_image
-		user.client.images |= electrocution_skeleton_anim
-	addtimer(CALLBACK(src, .proc/reset_hallucinate_shock_animation, user, shock_image, electrocution_skeleton_anim), 40)
-	user.playsound_local(get_turf(src), "sparks", 100, 1)
-	user.staminaloss += 50
-	user.Stun(40)
-	user.jitteriness += 1000
-	user.do_jitter_animation(user.jitteriness)
-	addtimer(CALLBACK(src, .proc/hallucinate_shock_drop, user), 20)
-
-/obj/machinery/door/airlock/proc/reset_hallucinate_shock_animation(mob/living/user, shock_image, electrocution_skeleton_anim)
-	if(user.client)
-		user.client.images.Remove(shock_image)
-		user.client.images.Remove(electrocution_skeleton_anim)
-
-/obj/machinery/door/airlock/proc/hallucinate_shock_drop(mob/living/user)
-	user.jitteriness = max(user.jitteriness - 990, 10) //Still jittery, but vastly less
-	user.Knockdown(60)
 
 /obj/machinery/door/airlock/proc/isElectrified()
 	if(src.secondsElectrified != NOT_ELECTRIFIED)
@@ -390,6 +361,7 @@
 /obj/machinery/door/airlock/proc/regainMainPower()
 	if(src.secondsMainPowerLost > 0)
 		src.secondsMainPowerLost = 0
+	update_icon()
 
 /obj/machinery/door/airlock/proc/handlePowerRestore()
 	var/cont = TRUE
@@ -410,6 +382,7 @@
 			cont = TRUE
 	spawnPowerRestoreRunning = FALSE
 	updateDialog()
+	update_icon()
 
 /obj/machinery/door/airlock/proc/loseMainPower()
 	if(secondsMainPowerLost <= 0)
@@ -419,6 +392,7 @@
 	if(!spawnPowerRestoreRunning)
 		spawnPowerRestoreRunning = TRUE
 	INVOKE_ASYNC(src, .proc/handlePowerRestore)
+	update_icon()
 
 /obj/machinery/door/airlock/proc/loseBackupPower()
 	if(src.secondsBackupPowerLost < 60)
@@ -426,10 +400,12 @@
 	if(!spawnPowerRestoreRunning)
 		spawnPowerRestoreRunning = TRUE
 	INVOKE_ASYNC(src, .proc/handlePowerRestore)
+	update_icon()
 
 /obj/machinery/door/airlock/proc/regainBackupPower()
 	if(src.secondsBackupPowerLost > 0)
 		src.secondsBackupPowerLost = 0
+	update_icon()
 
 // shock user with probability prb (if all connections & power are working)
 // returns TRUE if shocked, FALSE otherwise
@@ -442,7 +418,7 @@
 	if(!prob(prb))
 		return FALSE //you lucked out, no shock for you
 	do_sparks(5, TRUE, src)
-	var/tmp/check_range = TRUE
+	var/check_range = TRUE
 	if(electrocute_mob(user, get_area(src), src, 1, check_range))
 		shockCooldown = world.time + 10
 		return TRUE
@@ -603,6 +579,7 @@
 	add_overlay(sparks_overlay)
 	add_overlay(damag_overlay)
 	add_overlay(note_overlay)
+	check_unres()
 
 /proc/get_airlock_overlay(icon_state, icon_file)
 	var/obj/machinery/door/airlock/A
@@ -611,6 +588,31 @@
 	var/iconkey = "[icon_state][icon_file]"
 	if((!(. = airlock_overlays[iconkey])))
 		. = airlock_overlays[iconkey] = mutable_appearance(icon_file, icon_state)
+
+/obj/machinery/door/airlock/proc/check_unres() //unrestricted sides. This overlay indicates which directions the player can access even without an ID
+	if(hasPower() && unres_sides)
+		if(unres_sides & NORTH)
+			var/image/I = image(icon='icons/obj/doors/airlocks/station/overlays.dmi', icon_state="unres_n") //layer=src.layer+1
+			I.pixel_y = 32
+			set_light(l_range = 2, l_power = 1)
+			add_overlay(I)
+		if(unres_sides & SOUTH)
+			var/image/I = image(icon='icons/obj/doors/airlocks/station/overlays.dmi', icon_state="unres_s") //layer=src.layer+1
+			I.pixel_y = -32
+			set_light(l_range = 2, l_power = 1)
+			add_overlay(I)
+		if(unres_sides & EAST)
+			var/image/I = image(icon='icons/obj/doors/airlocks/station/overlays.dmi', icon_state="unres_e") //layer=src.layer+1
+			I.pixel_x = 32
+			set_light(l_range = 2, l_power = 1)
+			add_overlay(I)
+		if(unres_sides & WEST)
+			var/image/I = image(icon='icons/obj/doors/airlocks/station/overlays.dmi', icon_state="unres_w") //layer=src.layer+1
+			I.pixel_x = -32
+			set_light(l_range = 2, l_power = 1)
+			add_overlay(I)
+	else
+		set_light(0)
 
 /obj/machinery/door/airlock/do_animate(animation)
 	switch(animation)
@@ -661,6 +663,12 @@
 			to_chat(user, "It looks a bit stronger.")
 		else
 			to_chat(user, "It looks very robust.")
+
+	if(issilicon(user) && (!stat & BROKEN))
+		to_chat(user, "<span class='notice'>Shift-click [src] to [ density ? "open" : "close"] it.</span>")
+		to_chat(user, "<span class='notice'>Ctrl-click [src] to [ locked ? "raise" : "drop"] its bolts.</span>")
+		to_chat(user, "<span class='notice'>Alt-click [src] to [ secondsElectrified ? "un-electrify" : "permanently electrify"] it.</span>")
+		to_chat(user, "<span class='notice'>Ctrl-Shift-click [src] to [ emergency ? "disable" : "enable"] emergency access.</span>")
 
 /obj/machinery/door/airlock/attack_ai(mob/user)
 	if(!src.canAIControl(user))
@@ -813,7 +821,7 @@
 					if(do_after(user, 20, 1, target = src))
 						if(!panel_open || !S.use(2))
 							return
-						user.visible_message("<span class='notice'>[user] reinforce \the [src] with metal.</span>",
+						user.visible_message("<span class='notice'>[user] reinforces \the [src] with metal.</span>",
 											"<span class='notice'>You reinforce \the [src] with metal.</span>")
 						security_level = AIRLOCK_SECURITY_METAL
 						update_icon()
@@ -827,7 +835,7 @@
 					if(do_after(user, 20, 1, target = src))
 						if(!panel_open || !S.use(2))
 							return
-						user.visible_message("<span class='notice'>[user] reinforce \the [src] with plasteel.</span>",
+						user.visible_message("<span class='notice'>[user] reinforces \the [src] with plasteel.</span>",
 											"<span class='notice'>You reinforce \the [src] with plasteel.</span>")
 						security_level = AIRLOCK_SECURITY_PLASTEEL
 						modify_max_integrity(normal_integrity * AIRLOCK_INTEGRITY_MULTIPLIER)
@@ -1098,10 +1106,8 @@
 	else
 		playsound(src.loc, 'sound/machines/airlockforced.ogg', 30, 1)
 
-	if(autoclose && normalspeed)
-		addtimer(CALLBACK(src, .proc/autoclose), 150)
-	else if(autoclose && !normalspeed)
-		addtimer(CALLBACK(src, .proc/autoclose), 15)
+	if(autoclose)
+		autoclose_in(normalspeed ? 150 : 15)
 
 	if(!density)
 		return TRUE
@@ -1134,7 +1140,7 @@
 	if(safe)
 		for(var/atom/movable/M in get_turf(src))
 			if(M.density && M != src) //something is blocking the door
-				addtimer(CALLBACK(src, .proc/autoclose), 60)
+				autoclose_in(60)
 				return
 
 	if(forced < 2)
@@ -1310,7 +1316,7 @@
 		bolt() //Bolt it!
 		set_electrified(ELECTRIFIED_PERMANENT)  //Shock it!
 		if(origin)
-			shockedby += "\[[time_stamp()]\][origin](ckey:[origin.ckey])"
+			LAZYADD(shockedby, "\[[time_stamp()]\] [key_name(origin)]")
 
 
 /obj/machinery/door/airlock/disable_lockdown()
@@ -1351,7 +1357,7 @@
 			A = new /obj/structure/door_assembly(loc)
 			//If you come across a null assemblytype, it will produce the default assembly instead of disintegrating.
 		A.heat_proof_finished = src.heat_proof //tracks whether there's rglass in
-		A.anchored = TRUE
+		A.setAnchored(TRUE)
 		A.glass = src.glass
 		A.state = AIRLOCK_ASSEMBLY_NEEDS_ELECTRONICS
 		A.created_name = name
@@ -1539,7 +1545,7 @@
 			else if (safe)
 				safe = FALSE
 			else
-				to_chat(usr, "Firmware reports safeties already overriden.")
+				to_chat(usr, "Firmware reports safeties already overridden.")
 			. = TRUE
 		if("speed-on")
 			if(wires.is_cut(WIRE_TIMING))
@@ -1579,8 +1585,8 @@
 	if(wires.is_cut(WIRE_SHOCK))
 		to_chat(user, "The electrification wire has been cut")
 	else
-		shockedby += "\[[time_stamp()]\][user](ckey:[user.ckey])"
-		add_logs(user, src, "electrified")
+		LAZYADD(shockedby, "\[[time_stamp()]\] [key_name(user)]")
+		log_combat(user, src, "electrified")
 		set_electrified(AI_ELECTRIFY_DOOR_TIME)
 
 /obj/machinery/door/airlock/proc/shock_perm(mob/user)
@@ -1589,8 +1595,8 @@
 	if(wires.is_cut(WIRE_SHOCK))
 		to_chat(user, "The electrification wire has been cut")
 	else
-		shockedby += text("\[[time_stamp()]\][user](ckey:[user.ckey])")
-		add_logs(user, src, "electrified")
+		LAZYADD(shockedby, text("\[[time_stamp()]\] [key_name(user)]"))
+		log_combat(user, src, "electrified")
 		set_electrified(ELECTRIFIED_PERMANENT)
 
 /obj/machinery/door/airlock/proc/emergency_on(mob/user)

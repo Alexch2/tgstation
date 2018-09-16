@@ -118,6 +118,11 @@ GLOBAL_LIST_INIT(sand_recipes, list(\
 	to_chat(C, "<span class='userdanger'>\The [src] gets into your eyes! The pain, it burns!</span>")
 	qdel(src)
 
+/obj/item/stack/ore/glass/ex_act(severity, target)
+	if (severity == EXPLODE_NONE)
+		return
+	qdel(src)
+
 /obj/item/stack/ore/glass/basalt
 	name = "volcanic ash"
 	icon_state = "volcanic_sand"
@@ -258,25 +263,24 @@ GLOBAL_LIST_INIT(sand_recipes, list(\
 		playsound(src,'sound/effects/hit_on_shattered_glass.ogg',50,1)
 		icon_state = "Gibtonite active"
 		var/turf/bombturf = get_turf(src)
-		var/area/A = get_area(bombturf)
 		var/notify_admins = 0
 		if(z != 5)//Only annoy the admins ingame if we're triggered off the mining zlevel
 			notify_admins = 1
 
 		if(notify_admins)
 			if(triggered_by == 1)
-				message_admins("An explosion has triggered a [name] to detonate at [ADMIN_COORDJMP(bombturf)].")
+				message_admins("An explosion has triggered a [name] to detonate at [ADMIN_VERBOSEJMP(bombturf)].")
 			else if(triggered_by == 2)
-				message_admins("A signal has triggered a [name] to detonate at [ADMIN_COORDJMP(bombturf)]. Igniter attacher: [ADMIN_LOOKUPFLW(attacher)]")
+				message_admins("A signal has triggered a [name] to detonate at [ADMIN_VERBOSEJMP(bombturf)]. Igniter attacher: [ADMIN_LOOKUPFLW(attacher)]")
 			else
-				message_admins("[ADMIN_LOOKUPFLW(attacher)] has triggered a [name] to detonate at [ADMIN_COORDJMP(bombturf)].")
+				message_admins("[ADMIN_LOOKUPFLW(attacher)] has triggered a [name] to detonate at [ADMIN_VERBOSEJMP(bombturf)].")
 		if(triggered_by == 1)
-			log_game("An explosion has primed a [name] for detonation at [A][COORD(bombturf)]")
+			log_game("An explosion has primed a [name] for detonation at [AREACOORD(bombturf)]")
 		else if(triggered_by == 2)
-			log_game("A signal has primed a [name] for detonation at [A][COORD(bombturf)]. Igniter attacher: [key_name(attacher)].")
+			log_game("A signal has primed a [name] for detonation at [AREACOORD(bombturf)]. Igniter attacher: [key_name(attacher)].")
 		else
 			user.visible_message("<span class='warning'>[user] strikes \the [src], causing a chain reaction!</span>", "<span class='danger'>You strike \the [src], causing a chain reaction.</span>")
-			log_game("[key_name(user)] has primed a [name] for detonation at [A][COORD(bombturf)]")
+			log_game("[key_name(user)] has primed a [name] for detonation at [AREACOORD(bombturf)]")
 		det_timer = addtimer(CALLBACK(src, .proc/detonate, notify_admins), det_time, TIMER_STOPPABLE)
 
 /obj/item/twohanded/required/gibtonite/proc/detonate(notify_admins)
@@ -300,10 +304,6 @@ GLOBAL_LIST_INIT(sand_recipes, list(\
 		return
 	qdel(src)
 
-/obj/item/ore/stack/glass/ex_act(severity, target)
-	if (severity == EXPLODE_NONE)
-		return
-	qdel(src)
 
 /*****************************Coin********************************/
 
@@ -335,9 +335,8 @@ GLOBAL_LIST_INIT(sand_recipes, list(\
 
 /obj/item/coin/proc/manual_suicide(mob/living/user)
 	var/index = sideslist.Find(coinflip)
-	message_admins("coinflip landed on [coinflip] which is [index] in sideslist")
 	if (index==2)//tails
-		user.visible_message("<span class='suicide'>\the [src] lands on [coinflip]! [user] promply falls over, dead!</span>")
+		user.visible_message("<span class='suicide'>\the [src] lands on [coinflip]! [user] promptly falls over, dead!</span>")
 		user.adjustOxyLoss(200)
 		user.death(0)
 	else
@@ -368,7 +367,7 @@ GLOBAL_LIST_INIT(sand_recipes, list(\
 	value = 20
 	materials = list(MAT_SILVER = MINERAL_MATERIAL_AMOUNT*0.2)
 	grind_results = list("silver" = 4)
-	
+
 /obj/item/coin/diamond
 	name = "diamond coin"
 	cmineral = "diamond"

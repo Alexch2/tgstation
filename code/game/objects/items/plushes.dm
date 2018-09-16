@@ -141,8 +141,8 @@
 		user.visible_message("<span class='warning'>[user] slides [grenade] into [src].</span>", \
 		"<span class='danger'>You slide [I] into [src].</span>")
 		grenade = I
-		var/turf/T = get_turf(user)
-		log_game("[key_name(user)] added a grenade ([I.name]) to [src] at [COORD(T)].")
+		var/turf/grenade_turf = get_turf(src)
+		log_game("[key_name(user)] added a grenade ([I.name]) to [src] at [AREACOORD(grenade_turf)].")
 		return
 	if(istype(I, /obj/item/toy/plush))
 		love(I, user)
@@ -461,8 +461,8 @@
 		P.clashing = FALSE
 
 /obj/item/toy/plush/narplush
-	name = "nar'sie plushie"
-	desc = "A small stuffed doll of the elder god Nar'Sie. Who thought this was a good children's toy?"
+	name = "\improper Nar'Sie plushie"
+	desc = "A small stuffed doll of the elder goddess Nar'Sie. Who thought this was a good children's toy?"
 	icon_state = "narplush"
 	var/clashing
 	var/is_invoker = TRUE
@@ -475,7 +475,7 @@
 		P.clash_of_the_plushies(src)
 
 /obj/item/toy/plush/narplush/hugbox
-	desc = "A small stuffed doll of the elder god Nar'Sie. Who thought this was a good children's toy? <b>It looks sad.</b>"
+	desc = "A small stuffed doll of the elder goddess Nar'Sie. Who thought this was a good children's toy? <b>It looks sad.</b>"
 	is_invoker = FALSE
 
 /obj/item/toy/plush/lizardplushie
@@ -510,3 +510,13 @@
 	attack_verb = list("blorbled", "slimed", "absorbed")
 	squeak_override = list('sound/effects/blobattack.ogg' = 1)
 	gender = FEMALE	//given all the jokes and drawings, I'm not sure the xenobiologists would make a slimeboy
+
+/obj/item/toy/plush/awakenedplushie
+	name = "awakened plushie"
+	desc = "An ancient plushie that has grown enlightened to the true nature of reality."
+	icon_state = "plushie_awake"
+	item_state = "plushie_awake"
+
+/obj/item/toy/plush/awakenedplushie/ComponentInitialize()
+	. = ..()
+	AddComponent(/datum/component/edit_complainer)

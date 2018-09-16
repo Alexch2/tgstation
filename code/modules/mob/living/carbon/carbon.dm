@@ -19,6 +19,9 @@
 	QDEL_NULL(dna)
 	GLOB.carbon_list -= src
 
+/mob/living/carbon/initialize_footstep()
+	AddComponent(/datum/component/footstep, 1, 2)
+
 /mob/living/carbon/relaymove(mob/user, direction)
 	if(user in src.stomach_contents)
 		if(prob(40))
@@ -84,9 +87,9 @@
 
 /mob/living/carbon/attackby(obj/item/I, mob/user, params)
 	if(lying && surgeries.len)
-		if(user != src && user.a_intent == INTENT_HELP)
+		if(user != src && (user.a_intent == INTENT_HELP || user.a_intent == INTENT_DISARM))
 			for(var/datum/surgery/S in surgeries)
-				if(S.next_step(user))
+				if(S.next_step(user,user.a_intent))
 					return 1
 	return ..()
 
@@ -139,6 +142,7 @@
 		hud_used.throw_icon.icon_state = "act_throw_on"
 
 /mob/proc/throw_item(atom/target)
+	SEND_SIGNAL(src, COMSIG_MOB_THROW, target)
 	return
 
 /mob/living/carbon/throw_item(atom/target)
@@ -149,7 +153,7 @@
 		return
 
 	var/atom/movable/thrown_thing
-	var/obj/item/I = src.get_active_held_item()
+	var/obj/item/I = get_active_held_item()
 
 	if(!I)
 		if(pulling && isliving(pulling) && grab_state >= GRAB_AGGRESSIVE)
@@ -162,11 +166,9 @@
 				var/turf/start_T = get_turf(loc) //Get the start and target tile for the descriptors
 				var/turf/end_T = get_turf(target)
 				if(start_T && end_T)
-					var/start_T_descriptor = "tile in [get_area_name(start_T, TRUE)] ([start_T.x],[start_T.y],[start_T.z])"
-					var/end_T_descriptor = "tile at [get_area_name(end_T, TRUE)] ([end_T.x],[end_T.y],[end_T.z])"
-					add_logs(src, throwable_mob, "thrown", addition="grab from [start_T_descriptor] towards [end_T_descriptor]")
+					log_combat(src, throwable_mob, "thrown", addition="grab from tile in [AREACOORD(start_T)] towards tile at [AREACOORD(end_T)]")
 
-	else if(!(I.flags_1 & (NODROP_1|ABSTRACT_1)))
+	else if(!(I.item_flags & (NODROP | ABSTRACT)))
 		thrown_thing = I
 		dropItemToGround(I)
 
@@ -176,9 +178,9 @@
 
 	if(thrown_thing)
 		visible_message("<span class='danger'>[src] has thrown [thrown_thing].</span>")
-		add_logs(src, thrown_thing, "thrown")
+		log_message("has thrown [thrown_thing]", LOG_ATTACK)
 		newtonian_move(get_dir(target, src))
-		thrown_thing.throw_at(target, thrown_thing.throw_range, thrown_thing.throw_speed, src)
+		thrown_thing.safe_throw_at(target, thrown_thing.throw_range, thrown_thing.throw_speed, src, null, null, null, move_force)
 
 /mob/living/carbon/restrained(ignore_grab)
 	. = (handcuffed || (!ignore_grab && pulledby && pulledby.grab_state >= GRAB_AGGRESSIVE))
@@ -193,13 +195,13 @@
 	<HR>
 	<B><FONT size=3>[name]</FONT></B>
 	<HR>
-	<BR><B>Head:</B> <A href='?src=[REF(src)];item=[SLOT_HEAD]'>				[(head && !(head.flags_1&ABSTRACT_1)) 			? head 		: "Nothing"]</A>
-	<BR><B>Mask:</B> <A href='?src=[REF(src)];item=[SLOT_WEAR_MASK]'>		[(wear_mask && !(wear_mask.flags_1&ABSTRACT_1))	? wear_mask	: "Nothing"]</A>
-	<BR><B>Neck:</B> <A href='?src=[REF(src)];item=[SLOT_NECK]'>		[(wear_neck && !(wear_neck.flags_1&ABSTRACT_1))	? wear_neck	: "Nothing"]</A>"}
+	<BR><B>Head:</B> <A href='?src=[REF(src)];item=[SLOT_HEAD]'>				[(head && !(head.item_flags & ABSTRACT)) 			? head 		: "Nothing"]</A>
+	<BR><B>Mask:</B> <A href='?src=[REF(src)];item=[SLOT_WEAR_MASK]'>		[(wear_mask && !(wear_mask.item_flags & ABSTRACT))	? wear_mask	: "Nothing"]</A>
+	<BR><B>Neck:</B> <A href='?src=[REF(src)];item=[SLOT_NECK]'>		[(wear_neck && !(wear_neck.item_flags & ABSTRACT))	? wear_neck	: "Nothing"]</A>"}
 
 	for(var/i in 1 to held_items.len)
 		var/obj/item/I = get_item_for_held_index(i)
-		dat += "<BR><B>[get_held_index_name(i)]:</B></td><td><A href='?src=[REF(src)];item=[SLOT_HANDS];hand_index=[i]'>[(I && !(I.flags_1 & ABSTRACT_1)) ? I : "Nothing"]</a>"
+		dat += "<BR><B>[get_held_index_name(i)]:</B></td><td><A href='?src=[REF(src)];item=[SLOT_HANDS];hand_index=[i]'>[(I && !(I.item_flags & ABSTRACT)) ? I : "Nothing"]</a>"
 
 	dat += "<BR><B>Back:</B> <A href='?src=[REF(src)];item=[SLOT_BACK]'>[back ? back : "Nothing"]</A>"
 
@@ -257,7 +259,7 @@
 	if(restrained())
 		changeNext_move(CLICK_CD_BREAKOUT)
 		last_special = world.time + CLICK_CD_BREAKOUT
-		visible_message("<span class='warning'>[src] attempts to unbuckle themself!</span>", \
+		visible_message("<span class='warning'>[src] attempts to unbuckle [p_them()]self!</span>", \
 					"<span class='notice'>You attempt to unbuckle yourself... (This will take around one minute and you need to stay still.)</span>")
 		if(do_after(src, 600, 0, target = src))
 			if(!buckled)
@@ -273,11 +275,11 @@
 	fire_stacks -= 5
 	Knockdown(60, TRUE, TRUE)
 	spin(32,2)
-	visible_message("<span class='danger'>[src] rolls on the floor, trying to put themselves out!</span>", \
+	visible_message("<span class='danger'>[src] rolls on the floor, trying to put [p_them()]self out!</span>", \
 		"<span class='notice'>You stop, drop, and roll!</span>")
 	sleep(30)
 	if(fire_stacks <= 0)
-		visible_message("<span class='danger'>[src] has successfully extinguished themselves!</span>", \
+		visible_message("<span class='danger'>[src] has successfully extinguished [p_them()]self!</span>", \
 			"<span class='notice'>You extinguish yourself.</span>")
 		ExtinguishMob()
 	return
@@ -396,7 +398,7 @@
 		return initial(pixel_y)
 
 /mob/living/carbon/proc/accident(obj/item/I)
-	if(!I || (I.flags_1 & (NODROP_1|ABSTRACT_1)))
+	if(!I || (I.item_flags & (NODROP | ABSTRACT)))
 		return
 
 	dropItemToGround(I)
@@ -421,7 +423,7 @@
 			I.throw_at(target,I.throw_range,I.throw_speed,src)
 		if(61 to 90) //throw it down to the floor
 			var/turf/target = get_turf(loc)
-			I.throw_at(target,I.throw_range,I.throw_speed,src)
+			I.safe_throw_at(target,I.throw_range,I.throw_speed,src, force = move_force)
 
 /mob/living/carbon/Stat()
 	..()
@@ -453,7 +455,7 @@
 
 	if(is_mouth_covered()) //make this add a blood/vomit overlay later it'll be hilarious
 		if(message)
-			visible_message("<span class='danger'>[src] throws up all over themself!</span>", \
+			visible_message("<span class='danger'>[src] throws up all over [p_them()]self!</span>", \
 							"<span class='userdanger'>You throw up all over yourself!</span>")
 		distance = 0
 	else
@@ -482,15 +484,16 @@
 			break
 	return 1
 
-/mob/living/carbon/proc/spew_organ(power = 5)
-	if(!internal_organs.len)
-		return //Guess we're out of organs
-	var/obj/item/organ/guts = pick(internal_organs)
-	var/turf/T = get_turf(src)
-	guts.Remove(src)
-	guts.forceMove(T)
-	var/atom/throw_target = get_edge_target_turf(guts, dir)
-	guts.throw_at(throw_target, power, 4, src)
+/mob/living/carbon/proc/spew_organ(power = 5, amt = 1)
+	for(var/i in 1 to amt)
+		if(!internal_organs.len)
+			break //Guess we're out of organs!
+		var/obj/item/organ/guts = pick(internal_organs)
+		var/turf/T = get_turf(src)
+		guts.Remove(src)
+		guts.forceMove(T)
+		var/atom/throw_target = get_edge_target_turf(guts, dir)
+		guts.throw_at(throw_target, power, 4, src)
 
 
 /mob/living/carbon/fully_replace_character_name(oldname,newname)
@@ -507,15 +510,29 @@
 	var/total_stamina = 0
 	for(var/X in bodyparts)	//hardcoded to streamline things a bit
 		var/obj/item/bodypart/BP = X
-		total_brute	+= BP.brute_dam
-		total_burn	+= BP.burn_dam
-		total_stamina += BP.stamina_dam
-	health = maxHealth - getOxyLoss() - getToxLoss() - getCloneLoss() - total_burn - total_brute
-	staminaloss = total_stamina
+		total_brute	+= (BP.brute_dam * BP.body_damage_coeff)
+		total_burn	+= (BP.burn_dam * BP.body_damage_coeff)
+		total_stamina += (BP.stamina_dam * BP.stam_damage_coeff)
+	health = round(maxHealth - getOxyLoss() - getToxLoss() - getCloneLoss() - total_burn - total_brute, DAMAGE_PRECISION)
+	staminaloss = round(total_stamina, DAMAGE_PRECISION)
 	update_stat()
 	if(((maxHealth - total_burn) < HEALTH_THRESHOLD_DEAD) && stat == DEAD )
 		become_husk("burn")
 	med_hud_set_health()
+	if(stat == SOFT_CRIT)
+		add_movespeed_modifier(MOVESPEED_ID_CARBON_SOFTCRIT, TRUE, multiplicative_slowdown = SOFTCRIT_ADD_SLOWDOWN)
+	else
+		remove_movespeed_modifier(MOVESPEED_ID_CARBON_SOFTCRIT, TRUE)
+
+/mob/living/carbon/update_stamina()
+	var/stam = getStaminaLoss()
+	if(stam > DAMAGE_PRECISION)
+		var/total_health = (health - stam)
+		if(total_health <= crit_threshold && !stat)
+			if(!IsKnockdown())
+				to_chat(src, "<span class='notice'>You're too exhausted to keep going...</span>")
+			Knockdown(100)
+			update_health_hud()
 
 /mob/living/carbon/update_sight()
 	if(!client)
@@ -600,7 +617,7 @@
 	if(!client)
 		return
 
-	if(health <= HEALTH_THRESHOLD_CRIT)
+	if(health <= crit_threshold)
 		var/severity = 0
 		switch(health)
 			if(-20 to -10)
@@ -722,14 +739,14 @@
 	if(status_flags & GODMODE)
 		return
 	if(stat != DEAD)
-		if(health <= HEALTH_THRESHOLD_DEAD)
+		if(health <= HEALTH_THRESHOLD_DEAD && !has_trait(TRAIT_NODEATH))
 			death()
 			return
-		if(IsUnconscious() || IsSleeping() || getOxyLoss() > 50 || (has_trait(TRAIT_FAKEDEATH)) || health <= HEALTH_THRESHOLD_FULLCRIT)
+		if(IsUnconscious() || IsSleeping() || getOxyLoss() > 50 || (has_trait(TRAIT_DEATHCOMA)) || (health <= HEALTH_THRESHOLD_FULLCRIT && !has_trait(TRAIT_NOHARDCRIT)))
 			stat = UNCONSCIOUS
 			blind_eyes(1)
 		else
-			if(health <= HEALTH_THRESHOLD_CRIT)
+			if(health <= crit_threshold && !has_trait(TRAIT_NOSOFTCRIT))
 				stat = SOFT_CRIT
 			else
 				stat = CONSCIOUS
@@ -745,10 +762,10 @@
 		drop_all_held_items()
 		stop_pulling()
 		throw_alert("handcuffed", /obj/screen/alert/restrained/handcuffed, new_master = src.handcuffed)
-		SendSignal(COMSIG_ADD_MOOD_EVENT, "handcuffed", /datum/mood_event/handcuffed)
+		SEND_SIGNAL(src, COMSIG_ADD_MOOD_EVENT, "handcuffed", /datum/mood_event/handcuffed)
 	else
 		clear_alert("handcuffed")
-		SendSignal(COMSIG_CLEAR_MOOD_EVENT, "handcuffed")
+		SEND_SIGNAL(src, COMSIG_CLEAR_MOOD_EVENT, "handcuffed")
 	update_action_buttons_icon() //some of our action buttons might be unusable when we're handcuffed.
 	update_inv_handcuffed()
 	update_hud_handcuffed()
@@ -823,7 +840,7 @@
 						"<span class='userdanger'>[src] devours you!</span>")
 		C.forceMove(src)
 		stomach_contents.Add(C)
-		add_logs(src, C, "devoured")
+		log_combat(src, C, "devoured")
 
 /mob/living/carbon/proc/create_bodyparts()
 	var/l_arm_index_next = -1
@@ -865,6 +882,7 @@
 	.["Modify bodypart"] = "?_src_=vars;[HrefToken()];editbodypart=[REF(src)]"
 	.["Modify organs"] = "?_src_=vars;[HrefToken()];editorgans=[REF(src)]"
 	.["Hallucinate"] = "?_src_=vars;[HrefToken()];hallucinate=[REF(src)]"
+	.["Give martial arts"] = "?_src_=vars;[HrefToken()];givemartialart=[REF(src)]"
 	.["Give brain trauma"] = "?_src_=vars;[HrefToken()];givetrauma=[REF(src)]"
 	.["Cure brain traumas"] = "?_src_=vars;[HrefToken()];curetraumas=[REF(src)]"
 

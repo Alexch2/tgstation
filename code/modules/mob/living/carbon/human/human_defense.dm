@@ -144,7 +144,7 @@
 					I.forceMove(src)
 					L.receive_damage(I.w_class*I.embedding.embedded_impact_pain_multiplier)
 					visible_message("<span class='danger'>[I] embeds itself in [src]'s [L.name]!</span>","<span class='userdanger'>[I] embeds itself in your [L.name]!</span>")
-					SendSignal(COMSIG_ADD_MOOD_EVENT, "embedded", /datum/mood_event/embedded)
+					SEND_SIGNAL(src, COMSIG_ADD_MOOD_EVENT, "embedded", /datum/mood_event/embedded)
 					hitpush = FALSE
 					skipcatch = TRUE //can't catch the now embedded item
 
@@ -156,7 +156,7 @@
 	else
 		..()
 
-/mob/living/carbon/human/grippedby(mob/living/user)
+/mob/living/carbon/human/grippedby(mob/living/user, instant = FALSE)
 	if(w_uniform)
 		w_uniform.add_fingerprint(user)
 	..()
@@ -173,7 +173,7 @@
 		affecting = get_bodypart(ran_zone(user.zone_selected))
 	var/target_area = parse_zone(check_zone(user.zone_selected)) //our intended target
 
-	I.SendSignal(COMSIG_ITEM_ATTACK_ZONE, src, user, affecting)
+	SEND_SIGNAL(I, COMSIG_ITEM_ATTACK_ZONE, src, user, affecting)
 
 	SSblackbox.record_feedback("nested tally", "item_used_for_combat", 1, list("[I.force]", "[I.type]"))
 	SSblackbox.record_feedback("tally", "zone_targeted", 1, target_area)
@@ -220,7 +220,7 @@
 		else if(!M.client || prob(5)) // only natural monkeys get to stun reliably, (they only do it occasionaly)
 			playsound(loc, 'sound/weapons/pierce.ogg', 25, 1, -1)
 			Knockdown(100)
-			add_logs(M, src, "tackled")
+			log_combat(M, src, "tackled")
 			visible_message("<span class='danger'>[M] has tackled down [src]!</span>", \
 				"<span class='userdanger'>[M] has tackled down [src]!</span>")
 
@@ -259,7 +259,7 @@
 			playsound(loc, 'sound/weapons/slice.ogg', 25, 1, -1)
 			visible_message("<span class='danger'>[M] has slashed at [src]!</span>", \
 				"<span class='userdanger'>[M] has slashed at [src]!</span>")
-			add_logs(M, src, "attacked")
+			log_combat(M, src, "attacked")
 			if(!dismembering_strike(M, M.zone_selected)) //Dismemberment successful
 				return 1
 			apply_damage(damage, BRUTE, affecting, armor_block)
@@ -273,7 +273,7 @@
 			else
 				playsound(loc, 'sound/weapons/pierce.ogg', 25, 1, -1)
 				Knockdown(100)
-				add_logs(M, src, "tackled")
+				log_combat(M, src, "tackled")
 				visible_message("<span class='danger'>[M] has tackled down [src]!</span>", \
 					"<span class='userdanger'>[M] has tackled down [src]!</span>")
 
@@ -357,7 +357,7 @@
 
 		visible_message("<span class='danger'>[M.name] has hit [src]!</span>", \
 								"<span class='userdanger'>[M.name] has hit [src]!</span>", null, COMBAT_MESSAGE_RANGE)
-		add_logs(M.occupant, src, "attacked", M, "(INTENT: [uppertext(M.occupant.a_intent)]) (DAMTYPE: [uppertext(M.damtype)])")
+		log_combat(M.occupant, src, "attacked", M, "(INTENT: [uppertext(M.occupant.a_intent)]) (DAMTYPE: [uppertext(M.damtype)])")
 
 	else
 		..()
@@ -448,7 +448,7 @@
 			else if(S.siemens_coefficient == (-1))
 				total_coeff -= 1
 		siemens_coeff = total_coeff
-		if(flags_2 & TESLA_IGNORE_2)
+		if(flags_1 & TESLA_IGNORE_1)
 			siemens_coeff = 0
 	else if(!safety)
 		var/gloves_siemens_coeff = 1
@@ -469,6 +469,9 @@
 
 
 /mob/living/carbon/human/emp_act(severity)
+	. = ..()
+	if(. & EMP_PROTECT_CONTENTS)
+		return
 	var/informed = FALSE
 	for(var/obj/item/bodypart/L in src.bodyparts)
 		if(L.status == BODYPART_ROBOTIC)
@@ -482,7 +485,6 @@
 				if(2)
 					L.receive_damage(0,5)
 					Stun(100)
-	..()
 
 /mob/living/carbon/human/acid_act(acidpwr, acid_volume, bodyzone_hit)
 	var/list/damaged = list()
@@ -708,7 +710,7 @@
 					if(toxloss > 10)
 						to_chat(src, "<span class='danger'>You feel sick.</span>")
 					else if(toxloss > 20)
-						to_chat(src, "<span class='danger'>You feel nauseous.</span>")
+						to_chat(src, "<span class='danger'>You feel nauseated.</span>")
 					else if(toxloss > 40)
 						to_chat(src, "<span class='danger'>You feel very unwell!</span>")
 				if(oxyloss)
@@ -718,8 +720,23 @@
 						to_chat(src, "<span class='danger'>Your thinking is clouded and distant.</span>")
 					else if(oxyloss > 30)
 						to_chat(src, "<span class='danger'>You're choking!</span>")
-			if(roundstart_traits.len)
-				to_chat(src, "<span class='notice'>You have these traits: [get_trait_string()].</span>")
+
+			switch(nutrition)
+				if(NUTRITION_LEVEL_FULL to INFINITY)
+					to_chat(src, "<span class='info'>You're completely stuffed!</span>")
+				if(NUTRITION_LEVEL_WELL_FED to NUTRITION_LEVEL_FULL)
+					to_chat(src, "<span class='info'>You're well fed!</span>")
+				if(NUTRITION_LEVEL_FED to NUTRITION_LEVEL_WELL_FED)
+					to_chat(src, "<span class='info'>You're not hungry.</span>")
+				if(NUTRITION_LEVEL_HUNGRY to NUTRITION_LEVEL_FED)
+					to_chat(src, "<span class='info'>You could use a bite to eat.</span>")
+				if(NUTRITION_LEVEL_STARVING to NUTRITION_LEVEL_HUNGRY)
+					to_chat(src, "<span class='info'>You feel quite hungry.</span>")
+				if(0 to NUTRITION_LEVEL_STARVING)
+					to_chat(src, "<span class='danger'>You're starving!</span>")
+
+			if(roundstart_quirks.len)
+				to_chat(src, "<span class='notice'>You have these quirks: [get_trait_string()].</span>")
 		else
 			if(wear_suit)
 				wear_suit.add_fingerprint(M)
@@ -771,7 +788,7 @@
 		if(wear_suit && ((wear_suit.body_parts_covered & HANDS) || (wear_suit.body_parts_covered & ARMS)))
 			arm_clothes = wear_suit
 		if(arm_clothes)
-			torn_items += arm_clothes
+			torn_items |= arm_clothes
 
 	//LEGS & FEET//
 	if(!def_zone || def_zone == BODY_ZONE_L_LEG || def_zone == BODY_ZONE_R_LEG)
@@ -783,7 +800,7 @@
 		if(wear_suit && ((wear_suit.body_parts_covered & FEET) || (wear_suit.body_parts_covered & LEGS)))
 			leg_clothes = wear_suit
 		if(leg_clothes)
-			torn_items += leg_clothes
+			torn_items |= leg_clothes
 
 	for(var/obj/item/I in torn_items)
 		I.take_damage(damage_amount, damage_type, damage_flag, 0)

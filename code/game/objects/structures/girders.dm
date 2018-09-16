@@ -210,6 +210,9 @@
 
 // Screwdriver behavior for girders
 /obj/structure/girder/screwdriver_act(mob/user, obj/item/tool)
+	if(..())
+		return TRUE
+
 	. = FALSE
 	if(state == GIRDER_DISPLACED)
 		user.visible_message("<span class='warning'>[user] disassembles the girder.</span>",
@@ -440,7 +443,7 @@
 		if(B.get_amount() < 2)
 			to_chat(user, "<span class='warning'>You need at least two bronze sheets to build a bronze wall!</span>")
 			return 0
-		user.visible_message("<span class='notice'>[user] begins plating [src] with brozne...</span>", "<span class='notice'>You begin constructing a bronze wall...</span>")
+		user.visible_message("<span class='notice'>[user] begins plating [src] with bronze...</span>", "<span class='notice'>You begin constructing a bronze wall...</span>")
 		if(do_after(user, 50, target = src))
 			if(B.get_amount() < 2)
 				return

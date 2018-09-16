@@ -63,7 +63,7 @@
 /obj/structure/AIcore/latejoin_inactive/attackby(obj/item/P, mob/user, params)
 	if(istype(P, /obj/item/multitool))
 		active = !active
-		to_chat(user, "You [active? "activate" : "deactivate"] [src]'s transimtters.")
+		to_chat(user, "You [active? "activate" : "deactivate"] [src]'s transmitters.")
 		return
 	return ..()
 
@@ -147,8 +147,7 @@
 						to_chat(user, "<span class='notice'>You remove the cables.</span>")
 						state = SCREWED_CORE
 						update_icon()
-						var/obj/item/stack/cable_coil/A = new /obj/item/stack/cable_coil( loc )
-						A.amount = 5
+						new /obj/item/stack/cable_coil(drop_location(), 5)
 					return
 
 				if(istype(P, /obj/item/stack/sheet/rglass))
@@ -185,8 +184,9 @@
 						to_chat(user, "<span class='warning'>Sticking an inactive [M.name] into the frame would sort of defeat the purpose.</span>")
 						return
 
-					if(!CONFIG_GET(flag/allow_ai) || jobban_isbanned(M.brainmob, "AI"))
-						to_chat(user, "<span class='warning'>This [M.name] does not seem to fit!</span>")
+					if(!CONFIG_GET(flag/allow_ai) || (jobban_isbanned(M.brainmob, "AI") && !QDELETED(src) && !QDELETED(user) && !QDELETED(M) && !QDELETED(user) && Adjacent(user)))
+						if(!QDELETED(M))
+							to_chat(user, "<span class='warning'>This [M.name] does not seem to fit!</span>")
 						return
 
 					if(!M.brainmob.mind)

@@ -20,12 +20,14 @@
 /datum/objective/proc/considered_escaped(datum/mind/M)
 	if(!considered_alive(M))
 		return FALSE
+	if(M.force_escaped)
+		return TRUE
 	if(SSticker.force_ending || SSticker.mode.station_was_nuked) // Just let them win.
 		return TRUE
 	if(SSshuttle.emergency.mode != SHUTTLE_ENDGAME)
 		return FALSE
 	var/turf/location = get_turf(M.current)
-	if(!location || istype(location, /turf/open/floor/plasteel/shuttle/red) || istype(location, /turf/open/floor/mineral/plastitanium/brig)) // Fails if they are in the shuttle brig
+	if(!location || istype(location, /turf/open/floor/plasteel/shuttle/red) || istype(location, /turf/open/floor/mineral/plastitanium/red/brig)) // Fails if they are in the shuttle brig
 		return FALSE
 	return location.onCentCom() || location.onSyndieBase()
 
@@ -154,7 +156,7 @@
 	if(!target || !considered_alive(target) || considered_afk(target))
 		return TRUE
 	var/turf/T = get_turf(target.current)
-	return T && !is_station_level(T.z)
+	return !T || !is_station_level(T.z)
 
 /datum/objective/mutiny/update_explanation_text()
 	..()
@@ -272,7 +274,7 @@
 	if(SSshuttle.emergency.mode != SHUTTLE_ENDGAME)
 		return TRUE
 	for(var/mob/living/player in GLOB.player_list)
-		if(get_area(player) in SSshuttle.emergency.shuttle_areas && player.mind && player.stat != DEAD && ishuman(player))
+		if((get_area(player) in SSshuttle.emergency.shuttle_areas) && player.mind && player.stat != DEAD && ishuman(player))
 			var/mob/living/carbon/human/H = player
 			if(H.dna.species.id != "human")
 				return FALSE
@@ -539,7 +541,7 @@ GLOBAL_LIST_EMPTY(possible_items_special)
 
 /datum/objective/capture/check_completion()//Basically runs through all the mobs in the area to determine how much they are worth.
 	var/captured_amount = 0
-	var/area/centcom/holding/A = locate() in GLOB.sortedAreas
+	var/area/centcom/holding/A = GLOB.areas_by_type[/area/centcom/holding]
 	for(var/mob/living/carbon/human/M in A)//Humans.
 		if(M.stat == DEAD)//Dead folks are worth less.
 			captured_amount+=0.5
@@ -614,7 +616,7 @@ GLOBAL_LIST_EMPTY(possible_items_special)
 		absorbedcount += changeling.absorbedcount
 
 	for(var/datum/antagonist/changeling/changeling2 in GLOB.antagonists)
-		if(!changeling2.owner || !changeling2.stored_profiles || changeling2.absorbedcount < absorbedcount)
+		if(!changeling2.owner || changeling2.owner == owner || !changeling2.stored_profiles || changeling2.absorbedcount < absorbedcount)
 			continue
 		return FALSE
 	return TRUE
@@ -705,6 +707,8 @@ GLOBAL_LIST_EMPTY(possible_items_special)
 	var/min_lings = 3 //Minimum amount of lings for this team objective to be possible
 	var/escape_objective_compatible = FALSE
 
+/datum/objective/changeling_team_objective/proc/prepare()
+	return FALSE
 
 //Impersonate department
 //Picks as many people as it can from a department (Security,Engineer,Medical,Science)
@@ -715,6 +719,19 @@ GLOBAL_LIST_EMPTY(possible_items_special)
 	var/list/department_minds = list()
 	var/list/department_real_names = list()
 	var/department_string = ""
+
+
+/datum/objective/changeling_team_objective/impersonate_department/prepare()
+	var/result = FALSE
+	if(command_staff_only)
+		result = get_heads()
+	else
+		result = get_department_staff()
+	if(result)
+		update_explanation_text()
+		return TRUE
+	else
+		return FALSE
 
 
 /datum/objective/changeling_team_objective/impersonate_department/proc/get_department_staff()
@@ -749,9 +766,8 @@ GLOBAL_LIST_EMPTY(possible_items_special)
 
 	if(!department_minds.len)
 		log_game("[type] has failed to find department staff, and has removed itself. the round will continue normally")
-		owner.objectives -= src
-		qdel(src)
-		return
+		return FALSE
+	return TRUE
 
 
 /datum/objective/changeling_team_objective/impersonate_department/proc/get_heads()
@@ -778,19 +794,8 @@ GLOBAL_LIST_EMPTY(possible_items_special)
 
 	if(!department_minds.len)
 		log_game("[type] has failed to find department heads, and has removed itself. the round will continue normally")
-		owner.objectives -= src
-		qdel(src)
-		return
-
-
-/datum/objective/changeling_team_objective/impersonate_department/New(var/text)
-	..()
-	if(command_staff_only)
-		get_heads()
-	else
-		get_department_staff()
-
-	update_explanation_text()
+		return FALSE
+	return TRUE
 
 
 /datum/objective/changeling_team_objective/impersonate_department/update_explanation_text()
@@ -854,9 +859,6 @@ GLOBAL_LIST_EMPTY(possible_items_special)
 	if(success >= department_minds.len)
 		return TRUE
 	return FALSE
-
-
-
 
 //A subtype of impersonate_department
 //This subtype always picks as many command staff as it can (HoS,HoP,Cap,CE,CMO,RD)

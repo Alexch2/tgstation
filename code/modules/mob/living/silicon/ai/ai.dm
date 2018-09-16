@@ -16,13 +16,14 @@
 	name = "AI"
 	icon = 'icons/mob/ai.dmi'
 	icon_state = "ai"
-	anchored = TRUE
+	move_resist = MOVE_FORCE_VERY_STRONG
 	density = TRUE
 	canmove = FALSE
 	status_flags = CANSTUN|CANPUSH
 	a_intent = INTENT_HARM //so we always get pushed instead of trying to swap
 	sight = SEE_TURFS | SEE_MOBS | SEE_OBJS
 	see_in_dark = 8
+	hud_type = /datum/hud/ai
 	med_hud = DATA_HUD_MEDICAL_BASIC
 	sec_hud = DATA_HUD_SECURITY_BASIC
 	d_hud = DATA_HUD_DIAGNOSTIC_ADVANCED
@@ -74,7 +75,7 @@
 	var/nuking = FALSE
 	var/obj/machinery/doomsday_device/doomsday_device
 
-	var/mob/camera/aiEye/eyeobj = new
+	var/mob/camera/aiEye/eyeobj
 	var/sprint = 10
 	var/cooldown = 0
 	var/acceleration = 1
@@ -84,6 +85,12 @@
 	var/datum/action/innate/deploy_shell/deploy_action = new
 	var/datum/action/innate/deploy_last_shell/redeploy_action = new
 	var/chnotify = 0
+
+	var/multicam_on = FALSE
+	var/obj/screen/movable/pic_in_pic/ai/master_multicam
+	var/list/multicam_screens = list()
+	var/list/all_eyes = list()
+	var/max_multicams = 6
 
 /mob/living/silicon/ai/Initialize(mapload, datum/ai_laws/L, mob/target_ai)
 	. = ..()
@@ -116,9 +123,8 @@
 
 	job = "AI"
 
-	eyeobj.ai = src
-	eyeobj.forceMove(src.loc)
-	rename_self("ai")
+	create_eye()
+	apply_pref_name("ai")
 
 	holo_icon = getHologramIcon(icon('icons/mob/ai.dmi',"default"))
 
@@ -171,9 +177,11 @@
 	if(incapacitated())
 		return
 
-	var/icontype = input("Please, select a display!", "AI", null/*, null*/) in list("Clown", "Monochrome", "Blue", "Inverted", "Firewall", "Green", "Red", "Static", "Red October", "House", "Heartline", "Hades", "Helios", "President", "Syndicat Meow", "Alien", "Too Deep", "Triumvirate", "Triumvirate-M", "Text", "Matrix", "Dorf", "Bliss", "Not Malf", "Fuzzy", "Goon", "Database", "Glitchman", "Murica", "Nanotrasen", "Gentoo", "Angel")
+	var/icontype = input("Please, select a display!", "AI", null/*, null*/) in list("Clown", ":thinking:", "Monochrome", "Blue", "Inverted", "Firewall", "Green", "Red", "Static", "Red October", "House", "Heartline", "Hades", "Helios", "President", "Syndicat Meow", "Alien", "Too Deep", "Triumvirate", "Triumvirate-M", "Text", "Matrix", "Dorf", "Bliss", "Not Malf", "Fuzzy", "Goon", "Database", "Glitchman", "Murica", "Nanotrasen", "Gentoo", "Angel")
 	if(icontype == "Clown")
 		icon_state = "ai-clown2"
+	else if (icontype == ":thinking:")
+		icon_state = "ai-:thinking:"
 	else if(icontype == "Monochrome")
 		icon_state = "ai-mono"
 	else if(icontype == "Blue")
@@ -321,7 +329,16 @@
 
 /mob/living/silicon/ai/can_interact_with(atom/A)
 	. = ..()
-	return . || (istype(loc, /obj/item/aicard))? (ISINRANGE(A.x, x - interaction_range, x + interaction_range) && ISINRANGE(A.y, y - interaction_range, y + interaction_range)): GLOB.cameranet.checkTurfVis(get_turf(A))
+	if (.)
+		return
+	if (istype(loc, /obj/item/aicard))
+		var/turf/T0 = get_turf(src)
+		var/turf/T1 = get_turf(A)
+		if (!T0 || ! T1)
+			return FALSE
+		return ISINRANGE(T1.x, T0.x - interaction_range, T0.x + interaction_range) && ISINRANGE(T1.y, T0.y - interaction_range, T0.y + interaction_range)
+	else
+		return GLOB.cameranet.checkTurfVis(get_turf(A))
 
 /mob/living/silicon/ai/cancel_camera()
 	view_core()
@@ -333,9 +350,14 @@
 		return // stop
 	if(incapacitated())
 		return
-	anchored = !anchored // Toggles the anchor
+	var/is_anchored = FALSE
+	if(move_resist == MOVE_FORCE_VERY_STRONG)
+		move_resist = MOVE_FORCE_VERY_STRONG
+	else
+		is_anchored = TRUE
+		move_resist = MOVE_FORCE_NORMAL
 
-	to_chat(src, "<b>You are now [anchored ? "" : "un"]anchored.</b>")
+	to_chat(src, "<b>You are now [is_anchored ? "" : "un"]anchored.</b>")
 	// the message in the [] will change depending whether or not the AI is anchored
 
 /mob/living/silicon/ai/update_canmove() //If the AI dies, mobs won't go through it anymore
@@ -613,19 +635,20 @@
 
 	if(incapacitated())
 		return
-	var/list/ai_emotions = list("Very Happy", "Happy", "Neutral", "Unsure", "Confused", "Sad", "BSOD", "Blank", "Problems?", "Awesome", "Facepalm", "Friend Computer", "Dorfy", "Blue Glow", "Red Glow")
+	var/list/ai_emotions = list("Very Happy", "Happy", "Neutral", "Unsure", "Confused", "Sad", "BSOD", "Blank", "Problems?", "Awesome", "Facepalm", "Thinking", "Friend Computer", "Dorfy", "Blue Glow", "Red Glow")
 	var/emote = input("Please, select a status!", "AI Status", null, null) in ai_emotions
-	for (var/M in GLOB.ai_status_displays) //change status of displays
-		if(istype(M, /obj/machinery/ai_status_display))
-			var/obj/machinery/ai_status_display/AISD = M
-			AISD.emotion = emote
-		//if Friend Computer, change ALL displays
-		else if(istype(M, /obj/machinery/status_display))
-			var/obj/machinery/status_display/SD = M
-			if(emote=="Friend Computer")
-				SD.friendc = 1
-			else
-				SD.friendc = 0
+	for (var/each in GLOB.ai_status_displays) //change status of displays
+		var/obj/machinery/status_display/ai/M = each
+		M.emotion = emote
+		M.update()
+	if (emote == "Friend Computer")
+		var/datum/radio_frequency/frequency = SSradio.return_frequency(FREQ_STATUS_DISPLAYS)
+
+		if(!frequency)
+			return
+
+		var/datum/signal/status_signal = new(list("command" = "friendcomputer"))
+		frequency.post_signal(src, status_signal)
 	return
 
 //I am the icon meister. Bow fefore me.	//>fefore
@@ -817,7 +840,7 @@
 		//apc_override is needed here because AIs use their own APC when depowered
 		return (GLOB.cameranet && GLOB.cameranet.checkTurfVis(get_turf_pixel(A))) || apc_override
 	//AI is carded/shunted
-	//view(src) returns nothing for carded/shunted AIs and they have x-ray vision so just use get_dist
+	//view(src) returns nothing for carded/shunted AIs and they have X-ray vision so just use get_dist
 	var/list/viewscale = getviewsize(client.view)
 	return get_dist(src, A) <= max(viewscale[1]*0.5,viewscale[2]*0.5)
 
@@ -870,9 +893,12 @@
 		current = A
 	if(client)
 		if(ismovableatom(A))
+			if(A != GLOB.ai_camera_room_landmark)
+				end_multicam()
 			client.perspective = EYE_PERSPECTIVE
 			client.eye = A
 		else
+			end_multicam()
 			if(isturf(loc))
 				if(eyeobj)
 					client.eye = eyeobj
@@ -992,3 +1018,11 @@
 	. = ..()
 	if(!target_ai)
 		target_ai = src //cheat! just give... ourselves as the spawned AI, because that's technically correct
+
+/mob/living/silicon/ai/proc/camera_visibility(mob/camera/aiEye/moved_eye)
+	GLOB.cameranet.visibility(moved_eye, client, all_eyes, USE_STATIC_OPAQUE)
+
+/mob/living/silicon/ai/forceMove(atom/destination)
+	. = ..()
+	if(.)
+		end_multicam()

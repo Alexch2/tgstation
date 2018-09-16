@@ -42,6 +42,9 @@
 	to_chat(user, "<span class='info'>[src] is assembled in the [zone == BODY_ZONE_R_ARM ? "right" : "left"] arm configuration. You can use a screwdriver to reassemble it.</span>")
 
 /obj/item/organ/cyberimp/arm/screwdriver_act(mob/living/user, obj/item/I)
+	. = ..()
+	if(.)
+		return TRUE
 	I.play_tool_sound(src)
 	if(zone == BODY_ZONE_R_ARM)
 		zone = BODY_ZONE_L_ARM
@@ -56,11 +59,13 @@
 	..()
 
 /obj/item/organ/cyberimp/arm/emp_act(severity)
+	. = ..()
+	if(. & EMP_PROTECT_SELF)
+		return
 	if(prob(15/severity) && owner)
 		to_chat(owner, "<span class='warning'>[src] is hit by EMP!</span>")
 		// give the owner an idea about why his implant is glitching
 		Retract()
-	..()
 
 /obj/item/organ/cyberimp/arm/proc/Retract()
 	if(!holder || (holder in src))
@@ -84,7 +89,7 @@
 
 	holder = item
 
-	holder.flags_1 |= NODROP_1
+	holder.item_flags |= NODROP
 	holder.resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF
 	holder.slot_flags = null
 	holder.materials = null
@@ -134,6 +139,9 @@
 
 
 /obj/item/organ/cyberimp/arm/gun/emp_act(severity)
+	. = ..()
+	if(. & EMP_PROTECT_SELF)
+		return
 	if(prob(30/severity) && owner && !crit_fail)
 		Retract()
 		owner.visible_message("<span class='danger'>A loud bang comes from [owner]\'s [zone == BODY_ZONE_R_ARM ? "right" : "left"] arm!</span>")
@@ -143,8 +151,6 @@
 		owner.IgniteMob()
 		owner.adjustFireLoss(25)
 		crit_fail = 1
-	else // The gun will still discharge anyway.
-		..()
 
 
 /obj/item/organ/cyberimp/arm/gun/laser

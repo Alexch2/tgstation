@@ -9,7 +9,7 @@
 #define RAD_GRACE_PERIOD 2
 
 /obj/item/geiger_counter //DISCLAIMER: I know nothing about how real-life Geiger counters work. This will not be realistic. ~Xhuis
-	name = "geiger counter"
+	name = "\improper Geiger counter"
 	desc = "A handheld device used for detecting and measuring radiation pulses."
 	icon = 'icons/obj/device.dmi'
 	icon_state = "geiger_off"
@@ -131,17 +131,17 @@
 	update_icon()
 	to_chat(user, "<span class='notice'>[icon2html(src, user)] You switch [scanning ? "on" : "off"] [src].</span>")
 
-/obj/item/geiger_counter/attack(mob/living/M, mob/user)
+/obj/item/geiger_counter/afterattack(atom/target, mob/user)
+	. = ..()
 	if(user.a_intent == INTENT_HELP)
 		if(!(obj_flags & EMAGGED))
-			user.visible_message("<span class='notice'>[user] scans [M] with [src].</span>", "<span class='notice'>You scan [M]'s radiation levels with [src]...</span>")
-			addtimer(CALLBACK(src, .proc/scan, M, user), 20, TIMER_UNIQUE) // Let's not have spamming GetAllContents
+			user.visible_message("<span class='notice'>[user] scans [target] with [src].</span>", "<span class='notice'>You scan [target]'s radiation levels with [src]...</span>")
+			addtimer(CALLBACK(src, .proc/scan, target, user), 20, TIMER_UNIQUE) // Let's not have spamming GetAllContents
 		else
-			user.visible_message("<span class='notice'>[user] scans [M] with [src].</span>", "<span class='danger'>You project [src]'s stored radiation into [M]'s body!</span>")
-			M.rad_act(radiation_count)
+			user.visible_message("<span class='notice'>[user] scans [target] with [src].</span>", "<span class='danger'>You project [src]'s stored radiation into [target]!</span>")
+			target.rad_act(radiation_count)
 			radiation_count = 0
-		return 1
-	..()
+		return TRUE
 
 /obj/item/geiger_counter/proc/scan(atom/A, mob/user)
 	var/rad_strength = 0
@@ -161,9 +161,9 @@
 			to_chat(user, "<span class='boldannounce'>[icon2html(src, user)] Subject is irradiated. Radiation levels: [M.radiation].</span>")
 
 	if(rad_strength)
-		to_chat(user, "<span class='boldannounce'>[icon2html(src, user)] Subject has irradiated objects on them. Radioactive strength: [rad_strength]</span>")
+		to_chat(user, "<span class='boldannounce'>[icon2html(src, user)] Target contains radioactive contamination. Radioactive strength: [rad_strength]</span>")
 	else
-		to_chat(user, "<span class='notice'>[icon2html(src, user)] Subject is free of radioactive contamination.</span>")
+		to_chat(user, "<span class='notice'>[icon2html(src, user)] Target is free of radioactive contamination.</span>")
 
 /obj/item/geiger_counter/attackby(obj/item/I, mob/user, params)
 	if(istype(I, /obj/item/screwdriver) && (obj_flags & EMAGGED))
@@ -208,7 +208,10 @@
 	if (mobhook && mobhook.parent != user)
 		QDEL_NULL(mobhook)
 	if (!mobhook)
-		mobhook = user.AddComponent(/datum/component/redirect, list(COMSIG_ATOM_RAD_ACT), CALLBACK(src, /atom.proc/rad_act))
+		mobhook = user.AddComponent(/datum/component/redirect, list(COMSIG_ATOM_RAD_ACT = CALLBACK(src, .proc/redirect_rad_act)))
+
+/obj/item/geiger_counter/cyborg/proc/redirect_rad_act(datum/source, amount)
+	rad_act(amount)
 
 /obj/item/geiger_counter/cyborg/dropped()
 	. = ..()

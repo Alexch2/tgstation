@@ -68,8 +68,9 @@
 				if(prob(15))
 					Unconscious(rand(20,60))
 					to_chat(src, "<span class='warning'>You feel extremely [word].</span>")
-			if(0 to BLOOD_VOLUME_SURVIVE)
-				death()
+			if(-INFINITY to BLOOD_VOLUME_SURVIVE)
+				if(!has_trait(TRAIT_NODEATH))
+					death()
 
 		var/temp_bleed = 0
 		//Bleeding out
@@ -193,10 +194,10 @@
 		blood_data["real_name"] = real_name
 		blood_data["features"] = dna.features
 		blood_data["factions"] = faction
-		blood_data["traits"] = list()
-		for(var/V in roundstart_traits)
-			var/datum/trait/T = V
-			blood_data["traits"] += T.type
+		blood_data["quirks"] = list()
+		for(var/V in roundstart_quirks)
+			var/datum/quirk/T = V
+			blood_data["quirks"] += T.type
 		return blood_data
 
 //get the id of the substance this mob use as blood.
@@ -253,7 +254,7 @@
 		// Only a certain number of drips (or one large splatter) can be on a given turf.
 		var/obj/effect/decal/cleanable/blood/drip/drop = locate() in T
 		if(drop)
-			if(drop.drips < 3)
+			if(drop.drips < 5)
 				drop.drips++
 				drop.add_overlay(pick(drop.random_icon_states))
 				drop.transfer_mob_blood_dna(src)
@@ -270,6 +271,8 @@
 	var/obj/effect/decal/cleanable/blood/B = locate() in T
 	if(!B)
 		B = new /obj/effect/decal/cleanable/blood/splatter(T, get_static_viruses())
+	if (B.bloodiness < MAX_SHOE_BLOODINESS) //add more blood, up to a limit
+		B.bloodiness += BLOOD_AMOUNT_PER_DECAL
 	B.transfer_mob_blood_dna(src) //give blood info to the blood decal.
 	if(temp_blood_DNA)
 		B.add_blood_DNA(temp_blood_DNA)

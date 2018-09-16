@@ -431,8 +431,9 @@ datum/status_effect/stabilized/blue/on_remove()
 		if(owner.fire_stacks <= 0)
 			to_chat(owner, "<span class='notice'>[linked_extract] coats you in a watery goo, extinguishing the flames.</span>")
 	var/obj/O = owner.get_active_held_item()
-	O.extinguish() //All shamelessly copied from water's reaction_obj, since I didn't seem to be able to get it here for some reason.
-	O.acid_level = 0
+	if(O)
+		O.extinguish() //All shamelessly copied from water's reaction_obj, since I didn't seem to be able to get it here for some reason.
+		O.acid_level = 0
 	// Monkey cube
 	if(istype(O, /obj/item/reagent_containers/food/snacks/monkeycube))
 		to_chat(owner, "<span class='warning'>[linked_extract] kept your hands wet! It makes [O] expand!</span>")
@@ -448,8 +449,7 @@ datum/status_effect/stabilized/blue/on_remove()
 	else if(istype(O, /obj/item/stack/sheet/hairlesshide))
 		to_chat(owner, "<span class='warning'>[linked_extract] kept your hands wet! It wets [O]!</span>")
 		var/obj/item/stack/sheet/hairlesshide/HH = O
-		var/obj/item/stack/sheet/wetleather/WL = new(get_turf(HH))
-		WL.amount = HH.amount
+		new /obj/item/stack/sheet/wetleather(get_turf(HH), HH.amount)
 		qdel(HH)
 	..()
 
@@ -565,6 +565,7 @@ datum/status_effect/stabilized/blue/on_remove()
 /datum/status_effect/stabilized/cerulean/on_remove()
 	if(clone)
 		clone.visible_message("<span class='warning'>[clone] dissolves into a puddle of goo!</span>")
+		clone.unequip_everything()
 		qdel(clone)
 
 /datum/status_effect/stabilized/pyrite
@@ -710,7 +711,7 @@ datum/status_effect/stabilized/blue/on_remove()
 		if(M.stat == DEAD)
 			return
 		if(!messagedelivered)
-			to_chat(owner,"<span class='notice'>You feel your hands melt around [M]'s neck and start to drain them of life.</span>")
+			to_chat(owner,"<span class='notice'>You feel your hands melt around [M]'s neck and start to drain [M.p_them()] of life.</span>")
 			to_chat(owner.pulling, "<span class='userdanger'>[owner]'s hands melt around your neck, and you can feel your life starting to drain away!</span>")
 			messagedelivered = TRUE
 		examine_text = "<span class='warning'>SUBJECTPRONOUN is draining health from [owner.pulling]!</span>"
@@ -743,7 +744,7 @@ datum/status_effect/stabilized/blue/on_remove()
 /datum/status_effect/stabilized/lightpink/tick()
 	for(var/mob/living/carbon/human/H in range(1, get_turf(owner)))
 		if(H != owner && H.stat != DEAD && H.health <= 0 && !H.reagents.has_reagent("epinephrine"))
-			to_chat(owner, "[linked_extract] pulses in sync with [H]'s heartbeat, trying to keep them alive.")
+			to_chat(owner, "[linked_extract] pulses in sync with [H]'s heartbeat, trying to keep [H.p_them()] alive.")
 			H.reagents.add_reagent("epinephrine",5)
 	return ..()
 
@@ -761,9 +762,18 @@ datum/status_effect/stabilized/blue/on_remove()
 	var/mob/living/simple_animal/familiar
 
 /datum/status_effect/stabilized/gold/tick()
-	if(!familiar)
-		familiar = create_random_mob(get_turf(owner.loc), FRIENDLY_SPAWN)
+	var/obj/item/slimecross/stabilized/gold/linked = linked_extract
+	if(QDELETED(familiar))
+		familiar = new linked.mob_type(get_turf(owner.loc))
+		familiar.name = linked.mob_name
 		familiar.del_on_death = TRUE
+		familiar.copy_known_languages_from(owner, FALSE)
+		if(linked.saved_mind)
+			linked.saved_mind.transfer_to(familiar)
+			familiar.ckey = linked.saved_mind.key
+	else
+		if(familiar.mind)
+			linked.saved_mind = familiar.mind
 	return ..()
 
 /datum/status_effect/stabilized/gold/on_remove()

@@ -4,10 +4,9 @@
 	icon = 'icons/obj/pda.dmi'
 	icon_state = "pdapainter"
 	density = TRUE
-	anchored = TRUE
+	max_integrity = 200
 	var/obj/item/pda/storedpda = null
 	var/list/colorlist = list()
-	max_integrity = 200
 
 
 /obj/machinery/pdapainter/update_icon()
@@ -131,7 +130,7 @@
 	set category = "Object"
 	set src in oview(1)
 
-	if(usr.stat || usr.restrained() || !usr.canmove)
+	if(usr.stat || usr.restrained())
 		return
 
 	if(storedpda)

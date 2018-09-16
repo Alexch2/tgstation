@@ -65,17 +65,17 @@
 	if(req_stat < user.stat)
 		to_chat(user, "<span class='warning'>We are incapacitated.</span>")
 		return 0
-	if((user.has_trait(TRAIT_FAKEDEATH)) && (!ignores_fakedeath))
+	if((user.has_trait(TRAIT_DEATHCOMA)) && (!ignores_fakedeath))
 		to_chat(user, "<span class='warning'>We are incapacitated.</span>")
 		return 0
 	return 1
 
 //used in /mob/Stat()
 /obj/effect/proc_holder/changeling/proc/can_be_used_by(mob/user)
-	if(!user || QDELETED(user))
-		return 0
+	if(QDELETED(user))
+		return FALSE
 	if(!ishuman(user) && !ismonkey(user))
-		return 0
+		return FALSE
 	if(req_human && !ishuman(user))
-		return 0
-	return 1
+		return FALSE
+	return TRUE
